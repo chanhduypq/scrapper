@@ -5,7 +5,7 @@ set_time_limit(0);
 
 
 $coupon = new Coupon();
-$coupon->saveDB();
+$coupon->saveDB('localhost', 'root', '', 'db');
 
 class Coupon {
 
@@ -15,27 +15,32 @@ class Coupon {
     public function __construct($rootUrl = 'https://www.groupon.com/coupons/stores/amazon.com') {
         $this->rootUrl = $rootUrl;
     }
-    
-    public function saveDB(){
+
+    public function saveDB($host, $username, $password, $databaseName) {
         $this->getAllCoupons();
-        if(count($this->allCoupons)==0){
+        if (count($this->allCoupons) == 0) {
             return;
         }
-        $this->deleteOldCoupons();
-        $this->insertCoupons();
+        $this->deleteOldCoupons($host, $username, $password, $databaseName);
+        $this->insertCoupons($host, $username, $password, $databaseName);
     }
-    private function deleteOldCoupons(){
-        $conn = mysqli_connect('localhost', 'root', '', 'db') or die();
-        mysqli_query($conn, "DELETE FROM coupon");
+
+    private function deleteOldCoupons($host, $username, $password, $databaseName) {
+        $link = mysql_connect($host, $username, $password);
+        mysql_select_db($databaseName, $link);
+        mysql_query("DELETE FROM coupon WHERE from_website='" . rtrim($this->rootUrl, '/') . "'");
     }
-    private function insertCoupons(){
-        $sql='INSERT INTO coupon (title,code) VALUES ';
-        foreach ($this->allCoupons as $coupon){
-            $sql.="('".str_replace("'", "\'", $coupon['title'])."','".str_replace("'", "\'", $coupon['code'])."'),";
+
+    private function insertCoupons($host, $username, $password, $databaseName) {
+        $sql = 'INSERT INTO coupon (title,code,from_website) VALUES ';
+        foreach ($this->allCoupons as $coupon) {
+            $sql .= "('" . str_replace("'", "\'", $coupon['title']) . "','" . str_replace("'", "\'", $coupon['code']) . "','" . rtrim($this->rootUrl, '/') . "'),";
         }
-        $sql= rtrim($sql,',');
-        $conn = mysqli_connect('localhost', 'root', '', 'db') or die();
-        mysqli_query($conn, $sql);
+        $sql = rtrim($sql, ',');
+
+        $link = mysql_connect($host, $username, $password);
+        mysql_select_db($databaseName, $link);
+        mysql_query($sql);
     }
 
     private function getLastPage() {
@@ -52,34 +57,33 @@ class Coupon {
     public function getAllCoupons() {
 
         $html = file_get_contents($this->rootUrl);
-        $this->allCoupons= array_merge($this->allCoupons,$this->getAllCouponsByHtml($html));
+        $this->allCoupons = array_merge($this->allCoupons, $this->getAllCouponsByHtml($html));
         $lastPage = $this->getLastPage();
         for ($i = 1; $i <= $lastPage - 1; $i++) {
             $html = file_get_contents(rtrim($this->rootUrl, '/') . '?page=' . $i);
-            $this->allCoupons= array_merge($this->allCoupons,$this->getAllCouponsByHtml($html));
+            $this->allCoupons = array_merge($this->allCoupons, $this->getAllCouponsByHtml($html));
         }
-        
+
         return $this->allCoupons;
     }
 
     public function getAllCouponsByHtml($html) {
-        $allCoupons=array();
-        
+        $allCoupons = array();
+
         $htmlDom = new simple_html_dom();
         $htmlDom->load($html);
-        
-        foreach ($htmlDom->find('div[class="coupon row"]') as $node){
-            if($node->find('div[class="reveal-code-wrapper"]',0)!=NULL){
-                $description=$node->find('a[class="coupon-click affiliate-url"]',0)->find('span',0)->plaintext; 
-                $code=$node->find('div[class="reveal-code-wrapper"]',0)->find('div',0)->attr['data-clipboard-text'];
-                $allCoupons[]=array(
-                                    'title'=>$description,
-                                    'code'=>$code,
+
+        foreach ($htmlDom->find('div[class="coupon row"]') as $node) {
+            if ($node->find('div[class="reveal-code-wrapper"]', 0) != NULL) {
+                $description = $node->find('a[class="coupon-click affiliate-url"]', 0)->find('span', 0)->plaintext;
+                $code = $node->find('div[class="reveal-code-wrapper"]', 0)->find('div', 0)->attr['data-clipboard-text'];
+                $allCoupons[] = array(
+                    'title' => $description,
+                    'code' => $code,
                 );
             }
-            
         }
-        
+
         return $allCoupons;
     }
 
