@@ -25,10 +25,19 @@ class CouponGroupon {
             return;
         }
         $this->deleteOldCoupons($host, $username, $password, $databaseName);
+        
+        $coupons = $this->getCoupons($host, $username, $password, $databaseName);
+        $ids=array();
+        foreach ($coupons as $coupon) {
+            if(in_array($coupon['code'], array_keys($this->allCoupons))){
+                $ids[]=$coupon['id'];
+            }
+        }
+        if(count($ids)>0){
+            $this->delete($host, $username, $password, $databaseName, "id IN (". implode(",", $ids).")");
+        }
+        
         $this->insertCoupons($host, $username, $password, $databaseName, $this->allCoupons);
-        $coupons = $this->getCouponsGroupByCodeTitle($host, $username, $password, $databaseName);
-        $this->deleteAllCoupons($host, $username, $password, $databaseName);
-        $this->insertCoupons($host, $username, $password, $databaseName, $coupons);
     }
 
     private function deleteOldCoupons($host, $username, $password, $databaseName) {
@@ -37,9 +46,9 @@ class CouponGroupon {
         mysqli_query($conn, "DELETE FROM coupon WHERE source='" . rtrim($this->rootUrl, '/') . "' AND expire is not null AND expire < '$date'");
     }
     
-    private function deleteAllCoupons($host, $username, $password, $databaseName) {
+    private function delete($host, $username, $password, $databaseName, $whereAnd) {
         $conn = mysqli_connect($host, $username, $password, $databaseName);
-        mysqli_query($conn, "DELETE FROM coupon WHERE source='" . rtrim($this->rootUrl, '/') . "'");
+        mysqli_query($conn, "DELETE FROM coupon WHERE source='" . rtrim($this->rootUrl, '/') . "' AND $whereAnd");
     }
 
     private function insertCoupons($host, $username, $password, $databaseName, $coupons) {
@@ -58,10 +67,10 @@ class CouponGroupon {
         mysqli_query($conn, $sql);
     }
 
-    private function getCouponsGroupByCodeTitle($host, $username, $password, $databaseName) {
+    private function getCoupons($host, $username, $password, $databaseName) {
         $coupons = array();
         $conn = mysqli_connect($host, $username, $password, $databaseName);
-        $result = mysqli_query($conn, "SELECT * FROM coupon WHERE source='" . rtrim($this->rootUrl, '/') . "' GROUP BY code,title");
+        $result = mysqli_query($conn, "SELECT * FROM coupon WHERE source='" . rtrim($this->rootUrl, '/') . "'");
         while ($row = mysqli_fetch_array($result)) {
             $coupons[] = $row;
         }
@@ -110,11 +119,14 @@ class CouponGroupon {
                     list($m, $d, $y) = explode("/", $expire);
                     $expire = "$y-$m-$d";
                 }
-                $allCoupons[] = array(
-                    'title' => $title,
-                    'code' => $code,
-                    'expire' => $expire,
-                );
+                if(!isset($allCoupons["$code"])){
+                    $allCoupons["$code"] = array(
+                        'title' => $title,
+                        'code' => $code,
+                        'expire' => $expire,
+                    );
+                }
+                
             }
         }
 
@@ -138,10 +150,19 @@ class CouponRetailmenot {
             return;
         }
         $this->deleteOldCoupons($host, $username, $password, $databaseName);
+        
+        $coupons = $this->getCoupons($host, $username, $password, $databaseName);
+        $ids=array();
+        foreach ($coupons as $coupon) {
+            if(in_array($coupon['code'], array_keys($this->allCoupons))){
+                $ids[]=$coupon['id'];
+            }
+        }
+        if(count($ids)>0){
+            $this->delete($host, $username, $password, $databaseName, "id IN (". implode(",", $ids).")");
+        }
+        
         $this->insertCoupons($host, $username, $password, $databaseName, $this->allCoupons);
-        $coupons = $this->getCouponsGroupByCodeTitle($host, $username, $password, $databaseName);
-        $this->deleteAllCoupons($host, $username, $password, $databaseName);
-        $this->insertCoupons($host, $username, $password, $databaseName, $coupons);
     }
 
     public function getAllCoupons() {
@@ -164,8 +185,15 @@ class CouponRetailmenot {
                     $tmp = $node->find('.offer-item-title');
                     $title = (isset($tmp[0])) ? trim($tmp[0]->plaintext) : '';
 
+                    $code=trim($code[0]->plaintext);
                     //data
-                    $data[] = array('title' => $title, 'code' => trim($code[0]->plaintext),'expire' => '');
+                    if(!isset($data["$code"])){
+                        $data["$code"] = array(
+                            'title' => $title,
+                            'code' => $code,
+                            'expire' => '',
+                        );
+                    }
                 }
             }
 
@@ -183,9 +211,9 @@ class CouponRetailmenot {
         mysqli_query($conn, "DELETE FROM coupon WHERE source='" . rtrim($this->rootUrl, '/') . "' AND expire is not null AND expire < '$date'");
     }
 
-    private function deleteAllCoupons($host, $username, $password, $databaseName) {
+    private function delete($host, $username, $password, $databaseName, $whereAnd) {
         $conn = mysqli_connect($host, $username, $password, $databaseName);
-        mysqli_query($conn, "DELETE FROM coupon WHERE source='" . rtrim($this->rootUrl, '/') . "'");
+        mysqli_query($conn, "DELETE FROM coupon WHERE source='" . rtrim($this->rootUrl, '/') . "' AND $whereAnd");
     }
 
     private function insertCoupons($host, $username, $password, $databaseName, $coupons) {
@@ -204,10 +232,10 @@ class CouponRetailmenot {
         mysqli_query($conn, $sql);
     }
 
-    private function getCouponsGroupByCodeTitle($host, $username, $password, $databaseName) {
+    private function getCoupons($host, $username, $password, $databaseName) {
         $coupons = array();
         $conn = mysqli_connect($host, $username, $password, $databaseName);
-        $result = mysqli_query($conn, "SELECT * FROM coupon WHERE source='" . rtrim($this->rootUrl, '/') . "' GROUP BY code,title");
+        $result = mysqli_query($conn, "SELECT * FROM coupon WHERE source='" . rtrim($this->rootUrl, '/') . "'");
         while ($row = mysqli_fetch_array($result)) {
             $coupons[] = $row;
         }
