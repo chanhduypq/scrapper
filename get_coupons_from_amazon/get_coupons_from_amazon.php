@@ -4,10 +4,13 @@ require_once('include/simple_html_dom.php');
 set_time_limit(0);
 
 
-$coupon = new Coupon();
-$coupon->saveDB('localhost', 'root', '', 'db');
+$couponGroupon = new CouponGroupon();
+$couponGroupon->saveDB('localhost', 'root', '', 'db');
 
-class Coupon {
+$couponRetailmenot = new CouponRetailmenot();
+$couponRetailmenot->saveDB('localhost', 'root', '', 'db');
+
+class CouponGroupon {
 
     private $rootUrl = "";
     private $allCoupons = array();
@@ -26,21 +29,19 @@ class Coupon {
     }
 
     private function deleteOldCoupons($host, $username, $password, $databaseName) {
-        $link = mysql_connect($host, $username, $password);
-        mysql_select_db($databaseName, $link);
-        mysql_query("DELETE FROM coupon WHERE from_website='" . rtrim($this->rootUrl, '/') . "'");
+        $conn = mysqli_connect($host, $username, $password, $databaseName);
+        mysqli_query($conn, "DELETE FROM coupon WHERE source='" . rtrim($this->rootUrl, '/') . "'");
     }
 
     private function insertCoupons($host, $username, $password, $databaseName) {
-        $sql = 'INSERT INTO coupon (title,code,from_website) VALUES ';
+        $sql = 'INSERT INTO coupon (title,code,source) VALUES ';
         foreach ($this->allCoupons as $coupon) {
             $sql .= "('" . str_replace("'", "\'", $coupon['title']) . "','" . str_replace("'", "\'", $coupon['code']) . "','" . rtrim($this->rootUrl, '/') . "'),";
         }
         $sql = rtrim($sql, ',');
 
-        $link = mysql_connect($host, $username, $password);
-        mysql_select_db($databaseName, $link);
-        mysql_query($sql);
+        $conn = mysqli_connect($host, $username, $password, $databaseName);
+        mysqli_query($conn, $sql);
     }
 
     private function getLastPage() {
@@ -75,16 +76,131 @@ class Coupon {
 
         foreach ($htmlDom->find('div[class="coupon row"]') as $node) {
             if ($node->find('div[class="reveal-code-wrapper"]', 0) != NULL) {
-                $description = $node->find('a[class="coupon-click affiliate-url"]', 0)->find('span', 0)->plaintext;
+                $title = $node->find('a[class="coupon-click affiliate-url"]', 0)->find('span', 0)->plaintext;
                 $code = $node->find('div[class="reveal-code-wrapper"]', 0)->find('div', 0)->attr['data-clipboard-text'];
                 $allCoupons[] = array(
-                    'title' => $description,
+                    'title' => $title,
                     'code' => $code,
                 );
             }
         }
 
         return $allCoupons;
+    }
+
+}
+
+class CouponRetailmenot {
+
+    private $rootUrl = "";
+    private $allCoupons = array();
+
+    public function __construct($rootUrl = 'https://www.retailmenot.com/view/amazon.com') {
+        $this->rootUrl = $rootUrl;
+    }
+
+    public function saveDB($host, $username, $password, $databaseName) {
+        $this->getAllCoupons();
+        if (count($this->allCoupons) == 0) {
+            return;
+        }
+        $this->deleteOldCoupons($host, $username, $password, $databaseName);
+        $this->insertCoupons($host, $username, $password, $databaseName);
+    }
+
+    public function getAllCoupons() {
+
+        $data = array();
+        $url = $this->getFirstUrl();
+        if ($url != false) {
+
+            $html = $this->curl_getContent($url);
+            $html_base = new simple_html_dom();
+            $html_base->load($html);
+
+            $nodes = $html_base->find('ul.offer-list li.offer-list-item');
+            foreach ($nodes as $node) {
+
+                $code = $node->find('.offer-item-actions');
+                if (isset($code[0]) && strrpos($node->innertext, 'button-show-code-revealed') !== false) {
+
+                    //title
+                    $tmp = $node->find('.offer-item-title');
+                    $title = (isset($tmp[0])) ? trim($tmp[0]->plaintext) : '';
+
+                    //data
+                    $data[] = array('title' => $title, 'code' => trim($code[0]->plaintext));
+                }
+            }
+
+            // clear html_base
+            $html_base->clear();
+            unset($html_base);
+        }
+
+        $this->allCoupons = array_merge($this->allCoupons, $data);
+    }
+
+    private function deleteOldCoupons($host, $username, $password, $databaseName) {
+        $conn = mysqli_connect($host, $username, $password, $databaseName);
+        mysqli_query($conn, "DELETE FROM coupon WHERE source='" . rtrim($this->rootUrl, '/') . "'");
+    }
+
+    private function insertCoupons($host, $username, $password, $databaseName) {
+        $sql = 'INSERT INTO coupon (title,code,source) VALUES ';
+        foreach ($this->allCoupons as $coupon) {
+            $sql .= "('" . str_replace("'", "\'", $coupon['title']) . "','" . str_replace("'", "\'", $coupon['code']) . "','" . rtrim($this->rootUrl, '/') . "'),";
+        }
+        $sql = rtrim($sql, ',');
+
+        $conn = mysqli_connect($host, $username, $password, $databaseName);
+        mysqli_query($conn, $sql);
+    }
+
+    private function getFirstUrl() {
+
+        $result = false;
+        $html = $this->curl_getContent('https://www.retailmenot.com/view/amazon.com');
+        $html_base = new simple_html_dom();
+        $html_base->load($html);
+
+        $nodes = $html_base->find('ul.offer-list li.offer-list-item .offer-item-actions a');
+        foreach ($nodes as $node) {
+            //result
+            if (trim($node->plaintext) == 'Show Coupon Code' && isset($node->{'data-new-tab'})) {
+                $result = "https://www.retailmenot.com" . str_replace('c&#x3D;', 'c=', $node->{'data-new-tab'});
+                break;
+            }
+        }
+        // clear html_base
+        $html_base->clear();
+        unset($html_base);
+        return $result;
+    }
+
+    private function curl_getContent($url) {
+
+        $headers = array();
+        $headers[] = 'Host: www.retailmenot.com';
+        $headers[] = 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:53.0) Gecko/20100101 Firefox/53.0';
+        $headers[] = 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8';
+        $headers[] = 'Accept-Language: en-US,en;q=0.5';
+        $headers[] = 'Accept-Encoding: gzip, deflate, br';
+        $headers[] = 'Connection: keep-alive';
+        $headers[] = 'Upgrade-Insecure-Requests: 1';
+
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 1);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+        curl_setopt($ch, CURLOPT_ENCODING, "gzip");
+        $content = curl_exec($ch);
+        // $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        // print_r("Status: ".$status."\n");
+        return $content;
     }
 
 }
