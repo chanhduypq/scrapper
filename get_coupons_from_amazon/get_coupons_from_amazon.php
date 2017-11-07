@@ -24,7 +24,7 @@ class CouponGroupon {
         if (count($this->allCoupons) == 0) {
             return;
         }
-        $this->deleteOldCoupons($host, $username, $password, $databaseName);
+        $this->deleteExpireCoupons($host, $username, $password, $databaseName);
         
         $coupons = $this->getCoupons($host, $username, $password, $databaseName);
         $ids=array();
@@ -40,7 +40,7 @@ class CouponGroupon {
         $this->insertCoupons($host, $username, $password, $databaseName, $this->allCoupons);
     }
 
-    private function deleteOldCoupons($host, $username, $password, $databaseName) {
+    private function deleteExpireCoupons($host, $username, $password, $databaseName) {
         $conn = mysqli_connect($host, $username, $password, $databaseName);
         $date=date('Y-m-d');
         mysqli_query($conn, "DELETE FROM coupon WHERE source='" . rtrim($this->rootUrl, '/') . "' AND expire is not null AND expire < '$date'");
@@ -149,7 +149,7 @@ class CouponRetailmenot {
         if (count($this->allCoupons) == 0) {
             return;
         }
-        $this->deleteOldCoupons($host, $username, $password, $databaseName);
+        $this->deleteExpireCoupons($host, $username, $password, $databaseName);
         
         $coupons = $this->getCoupons($host, $username, $password, $databaseName);
         $ids=array();
@@ -205,7 +205,7 @@ class CouponRetailmenot {
         $this->allCoupons = array_merge($this->allCoupons, $data);
     }
 
-    private function deleteOldCoupons($host, $username, $password, $databaseName) {
+    private function deleteExpireCoupons($host, $username, $password, $databaseName) {
         $conn = mysqli_connect($host, $username, $password, $databaseName);
         $date=date('Y-m-d');
         mysqli_query($conn, "DELETE FROM coupon WHERE source='" . rtrim($this->rootUrl, '/') . "' AND expire is not null AND expire < '$date'");
