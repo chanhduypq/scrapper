@@ -30,13 +30,20 @@ class CouponGroupon {
 
     private function deleteOldCoupons($host, $username, $password, $databaseName) {
         $conn = mysqli_connect($host, $username, $password, $databaseName);
-        mysqli_query($conn, "DELETE FROM coupon WHERE source='" . rtrim($this->rootUrl, '/') . "'");
+        $date=date('Y-m-d');
+        mysqli_query($conn, "DELETE FROM coupon WHERE source='" . rtrim($this->rootUrl, '/') . "' AND expire is not null AND expire < '$date'");
     }
 
     private function insertCoupons($host, $username, $password, $databaseName) {
-        $sql = 'INSERT INTO coupon (title,code,source) VALUES ';
+        $sql = 'INSERT INTO coupon (title,code,source,expire) VALUES ';
         foreach ($this->allCoupons as $coupon) {
-            $sql .= "('" . str_replace("'", "\'", $coupon['title']) . "','" . str_replace("'", "\'", $coupon['code']) . "','" . rtrim($this->rootUrl, '/') . "'),";
+            if ($coupon['expire'] == '') {
+                $expire='NULL';
+            }
+            else{
+                $expire="'".$coupon['expire']."'";
+            }
+            $sql .= "('" . str_replace("'", "\'", $coupon['title']) . "','" . str_replace("'", "\'", $coupon['code']) . "','" . rtrim($this->rootUrl, '/') . "',$expire),";
         }
         $sql = rtrim($sql, ',');
 
@@ -78,9 +85,18 @@ class CouponGroupon {
             if ($node->find('div[class="reveal-code-wrapper"]', 0) != NULL) {
                 $title = $node->find('a[class="coupon-click affiliate-url"]', 0)->find('span', 0)->plaintext;
                 $code = $node->find('div[class="reveal-code-wrapper"]', 0)->find('div', 0)->attr['data-clipboard-text'];
+                if ($node->find("p[class='expires']", 0) == null) {
+                    $expire = '';
+                } else {
+                    $expire = $node->find("p[class='expires']", 0)->find("span", 0)->find("span", 0)->plaintext;
+                    list($expire, $tmp) = explode(" ", $expire);
+                    list($m, $d, $y) = explode("/", $expire);
+                    $expire = "$y-$m-$d";
+                }
                 $allCoupons[] = array(
                     'title' => $title,
                     'code' => $code,
+                    'expire' => $expire,
                 );
             }
         }
