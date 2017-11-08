@@ -12,7 +12,30 @@ table .groupon,table .retailmenot{
 }
 table .expire,table .used_today{
     width: 10%;
+    text-align: left;
 }
+
+table thead tr .headerSortUp {
+    background-image: url(../images/asc.gif) !important;
+}
+table thead tr .headerSortDown {
+    background-image: url(../images/desc.gif) !important;
+}
+table thead tr .headerSortDown, table thead tr .headerSortUp {
+    background-color: #8dbdd8;
+}
+table thead tr .header {
+    background-image: url(../images/bg.gif);
+    background-repeat: no-repeat;
+    background-position: center right;
+    cursor: pointer;
+}
+table thead tr th.header{
+    background-color: #e6EEEE;
+    border: 1px solid #FFF;
+    padding: 4px;
+}
+
 div.left,div.right{
     float: left;
     width: 10%;

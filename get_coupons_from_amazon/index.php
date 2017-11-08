@@ -1,17 +1,42 @@
 <?php 
+$orderBy = 'created_at DESC';
+
+$classForUsedToday = $classForExpiry = '';
+$hrefForUsedToday='index.php?used_today=asc';
+$hrefForExpiry='index.php?expiry=asc';
+if (isset($_GET['used_today'])) {
+    if ($_GET['used_today'] == 'asc') {
+        $classForUsedToday = ' headerSortDown';
+        $hrefForUsedToday='index.php?used_today=desc';
+        $orderBy = 'used_today ASC';
+    } else {
+        $classForUsedToday = ' headerSortUp';
+        $hrefForUsedToday='index.php?used_today=asc';
+        $orderBy = 'used_today DESC';
+    }
+}
+if (isset($_GET['expiry'])) {
+    if ($_GET['expiry'] == 'asc') {
+        $classForExpiry = ' headerSortDown';
+        $hrefForExpiry='index.php?expiry=desc';
+        $orderBy = 'expire ASC';
+    } else {
+        $classForExpiry = ' headerSortUp';
+        $hrefForExpiry='index.php?expiry=asc';
+        $orderBy = 'expire DESC';
+    }
+}
+
 $conn = mysqli_connect('localhost', 'root', '', 'db');
 
 $coupons = array();
 
-$result = mysqli_query($conn, "SELECT used_today,coupon.code,coupon.title,DATE_FORMAT(coupon.expire,'%d %m %Y') as expire,coupon.source,created_at FROM coupon ORDER BY created_at DESC");
+$result = mysqli_query($conn, "SELECT used_today,code,title_groupon,title_retailmenot,DATE_FORMAT(expire,'%d %m %Y') as expire,created_at FROM coupon_both ORDER BY coupon_both.$orderBy");
 while ($row = mysqli_fetch_array($result)) {
-    if ($row['source'] == 'https://www.groupon.com/coupons/stores/amazon.com') {
-        $coupons[$row['code']]['groupon'] = $row;
-    }
-    if ($row['source'] == 'https://www.retailmenot.com/view/amazon.com') {
-        $coupons[$row['code']]['retailmenot'] = $row;
-    }
+    $coupons[]=$row;
 }
+
+
 ?>
 <!DOCTYPE html>
 <!--
@@ -25,7 +50,6 @@ and open the template in the editor.
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link href="public/css/style.css" rel="stylesheet" type="text/css"/>
-        <link href="public/css/paging.css" rel="stylesheet" type="text/css"/>
         <script type="text/javascript">
             function getCouponCode(input){
                 window.location='get_coupons_from_amazon.php';
@@ -44,15 +68,7 @@ and open the template in the editor.
             <div style="width: 100%;margin: 0 auto;text-align: center;">
                 <h3 style="text-align: center;width: 100%;">
                     <?php 
-                        foreach ($coupons as $code=>$coupon){
-                            if(isset($coupon['groupon'])){
-                                echo $coupon['groupon']['created_at'];
-                            }
-                            else{
-                                echo $coupon['retailmenot']['created_at'];
-                            }
-                            break;
-                        }
+                        echo $coupons[0]['created_at'];
                     ?>
                 </h3>
                 <table style="width: 100%;">
@@ -67,71 +83,32 @@ and open the template in the editor.
                             <th class="retailmenot">
                                 https://www.retailmenot.com/view/amazon.com
                             </th>
-                            <th class="used_today">
+                            <th onclick="window.location='<?php echo $hrefForUsedToday;?>';" class="used_today header<?php echo $classForUsedToday;?>">
                                 used today
                             </th>
-                            <th class="expire">
+                            <th onclick="window.location='<?php echo $hrefForExpiry;?>';" class="expire header<?php echo $classForExpiry;?>">
                                 Expiry
                             </th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php 
-                        foreach ($coupons as $code=>$coupon){?>
+                        foreach ($coupons as $coupon){?>
                         <tr>
                             <td class="code">
-                                <?php echo $code;?>
+                                <?php echo $coupon['code'];?>
                             </td>
                             <td class="groupon">
-                                <?php 
-                                if(isset($coupon['groupon'])){
-                                    echo $coupon['groupon']['title'];
-                                }
-                                ?>
+                                <?php echo $coupon['title_groupon'];?>
                             </td>
                             <td class="retailmenot">
-                                <?php 
-                                if(isset($coupon['retailmenot'])){
-                                    echo $coupon['retailmenot']['title'];
-                                }
-                                ?>
+                                <?php echo $coupon['title_retailmenot'];?>
                             </td>
                             <td class="used_today">
-                                <?php 
-                                if (isset($coupon['groupon']) && $coupon['groupon']['used_today'] != '') {
-                                    echo $coupon['groupon']['used_today'];
-                                } else if (isset($coupon['retailmenot']) && $coupon['retailmenot']['used_today'] != '') {
-                                    echo $coupon['retailmenot']['used_today'];
-                                }
-                                    ?>
+                               <?php echo $coupon['used_today'];?>
                             </td>
                             <td class="expire">
-                                <?php 
-                                $grouponExpire=$retailmenotExpire='';
-                                if (isset($coupon['groupon']) && $coupon['groupon']['expire'] != '') {
-                                    $grouponExpire= $coupon['groupon']['expire'];
-                                }
-                                if (isset($coupon['retailmenot']) && $coupon['retailmenot']['expire'] != '') {
-                                    $retailmenotExpire= $coupon['retailmenot']['expire'];
-                                }
-                                if ($grouponExpire != '' && $retailmenotExpire != '') {
-                                    list($d, $m, $y) = explode(' ', $grouponExpire);
-                                    $date1 = new DateTime("$y-$m-$d 01:01:01");
-                                    list($d, $m, $y) = explode(' ', $retailmenotExpire);
-                                    $date2 = new DateTime("$y-$m-$d 01:01:01");
-                                    if ($date1 > $date2) {
-                                        echo $retailmenotExpire;
-                                    } else {
-                                        echo $grouponExpire;
-                                    }
-                                } else {
-                                    if ($grouponExpire != '') {
-                                        echo $grouponExpire;
-                                    } else if ($retailmenotExpire != '') {
-                                        echo $retailmenotExpire;
-                                    }
-                                }
-                                ?>
+                                <?php echo $coupon['expire'];?>
                             </td>
                         </tr>
                         <?php 

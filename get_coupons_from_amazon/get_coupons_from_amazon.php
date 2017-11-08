@@ -10,6 +10,78 @@ $couponGroupon->saveDB('localhost', 'root', '', 'db');
 $couponRetailmenot = new CouponRetailmenot();
 $couponRetailmenot->saveDB('localhost', 'root', '', 'db');
 
+$conn = mysqli_connect('localhost', 'root', '', 'db');
+$coupons = array();
+$result = mysqli_query($conn, "SELECT used_today,coupon.code,coupon.title,expire,coupon.source,created_at FROM coupon ORDER BY created_at DESC");
+while ($row = mysqli_fetch_array($result)) {
+    if ($row['source'] == 'https://www.groupon.com/coupons/stores/amazon.com') {
+        $coupons[$row['code']]['groupon'] = $row;
+    }
+    if ($row['source'] == 'https://www.retailmenot.com/view/amazon.com') {
+        $coupons[$row['code']]['retailmenot'] = $row;
+    }
+}
+mysqli_query($conn, "DELETE FROM coupon_both");
+$sql = 'INSERT INTO coupon_both (title_groupon,title_retailmenot,code,expire,used_today) VALUES ';
+foreach ($coupons as $code=>$coupon) {
+    $expire=$used_today='NULL';
+    if(count($coupon)==1){
+        if(isset($coupon['groupon'])){
+            $title_groupon="'".str_replace("'", "\'", $coupon['groupon']['title'])."'";
+            $title_retailmenot='NULL';
+            $expire=($coupon['groupon']['expire']!=''?("'".$coupon['groupon']['expire']."'"):'NULL');
+            $used_today=($coupon['groupon']['used_today']!=''?$coupon['groupon']['used_today']:'NULL');
+        }
+        else{
+            $title_retailmenot="'".str_replace("'", "\'", $coupon['retailmenot']['title'])."'";
+            $title_groupon='NULL';
+            $expire=($coupon['retailmenot']['expire']!=''?("'".$coupon['retailmenot']['expire']."'"):'NULL');
+            $used_today=($coupon['retailmenot']['used_today']!=''?$coupon['retailmenot']['used_today']:'NULL');
+        }
+        
+    }
+    else{
+        $title_groupon="'".str_replace("'", "\'", $coupon['groupon']['title'])."'";
+        $title_retailmenot="'".str_replace("'", "\'", $coupon['retailmenot']['title'])."'";
+        if ($coupon['groupon']['expire'] != '' && $coupon['retailmenot']['expire'] != '') {
+            $date1 = new DateTime($coupon['groupon']['expire']);
+            $date2 = new DateTime($coupon['retailmenot']['expire']);
+            if ($date1 > $date2) {
+                $expire=$coupon['retailmenot']['expire'];
+            } else {
+                $expire=$coupon['groupon']['expire'];
+            }
+        } else {
+            if ($coupon['groupon']['expire'] != '') {
+                $expire="'".$coupon['groupon']['expire']."'";
+            } else if ($coupon['retailmenot']['expire'] != '') {
+                $expire="'".$coupon['retailmenot']['expire']."'";
+            }
+        }
+        
+        if ($coupon['groupon']['used_today'] != '' && $coupon['retailmenot']['used_today'] != '') {
+            if ($coupon['retailmenot']['used_today'] > $coupon['groupon']['used_today']) {
+                $used_today=$coupon['retailmenot']['used_today'];
+            } else {
+                $used_today=$coupon['groupon']['used_today'];
+            }
+        } else {
+            if ($coupon['groupon']['used_today'] != '') {
+                $used_today=$coupon['groupon']['used_today'];
+            } else if ($coupon['retailmenot']['used_today'] != '') {
+                $used_today=$coupon['retailmenot']['used_today'];
+            }
+        }
+        
+    }
+    
+    $sql .= "($title_groupon,$title_retailmenot,'" . str_replace("'", "\'", $code) . "',$expire,$used_today),";
+}
+$sql= rtrim($sql,',');
+mysqli_query($conn, $sql);
+
+
+
 header('Location:index.php');
 
 class CouponGroupon {
