@@ -3,7 +3,7 @@ $conn = mysqli_connect('localhost', 'root', '', 'db');
 
 $coupons = array();
 
-$result = mysqli_query($conn, "SELECT used_today,coupon.code,coupon.title,DATE_FORMAT(coupon.expire,'%d %m %Y') as expire,coupon.source FROM coupon ORDER BY created_at DESC");
+$result = mysqli_query($conn, "SELECT used_today,coupon.code,coupon.title,DATE_FORMAT(coupon.expire,'%d %m %Y') as expire,coupon.source,created_at FROM coupon ORDER BY created_at DESC");
 while ($row = mysqli_fetch_array($result)) {
     if ($row['source'] == 'https://www.groupon.com/coupons/stores/amazon.com') {
         $coupons[$row['code']]['groupon'] = $row;
@@ -39,8 +39,22 @@ and open the template in the editor.
         <div class="center">
             <div style="float: right;padding: 50px;">
                 <input type="button" value="Get coupons" style="cursor: pointer;" onclick="getCouponCode(this);"/>
-            </div>            
+            </div>
+            <div style="clear: both"></div>            
             <div style="width: 100%;margin: 0 auto;text-align: center;">
+                <h3 style="text-align: center;width: 100%;">
+                    <?php 
+                        foreach ($coupons as $code=>$coupon){
+                            if(isset($coupon['groupon'])){
+                                echo $coupon['groupon']['created_at'];
+                            }
+                            else{
+                                echo $coupon['retailmenot']['created_at'];
+                            }
+                            break;
+                        }
+                    ?>
+                </h3>
                 <table style="width: 100%;">
                     <thead>
                         <tr>
