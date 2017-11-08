@@ -93,10 +93,29 @@ and open the template in the editor.
                             </td>
                             <td class="expire">
                                 <?php 
+                                $grouponExpire=$retailmenotExpire='';
                                 if (isset($coupon['groupon']) && $coupon['groupon']['expire'] != '') {
-                                    echo $coupon['groupon']['expire'];
-                                } else if (isset($coupon['retailmenot']) && $coupon['retailmenot']['expire'] != '') {
-                                    echo $coupon['retailmenot']['expire'];
+                                    $grouponExpire= $coupon['groupon']['expire'];
+                                }
+                                if (isset($coupon['retailmenot']) && $coupon['retailmenot']['expire'] != '') {
+                                    $retailmenotExpire= $coupon['retailmenot']['expire'];
+                                }
+                                if ($grouponExpire != '' && $retailmenotExpire != '') {
+                                    list($d, $m, $y) = explode(' ', $grouponExpire);
+                                    $date1 = new DateTime("$y-$m-$d 01:01:01");
+                                    list($d, $m, $y) = explode(' ', $retailmenotExpire);
+                                    $date2 = new DateTime("$y-$m-$d 01:01:01");
+                                    if ($date1 > $date2) {
+                                        echo $retailmenotExpire;
+                                    } else {
+                                        echo $grouponExpire;
+                                    }
+                                } else {
+                                    if ($grouponExpire != '') {
+                                        echo $grouponExpire;
+                                    } else if ($retailmenotExpire != '') {
+                                        echo $retailmenotExpire;
+                                    }
                                 }
                                 ?>
                             </td>
