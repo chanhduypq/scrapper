@@ -15,6 +15,9 @@ table .groupon,table .retailmenot{
 }
 table .expire,table .used_today{
     width: 10%;
+}
+table th.expire,table th.used_today{
+    width: 10%;
     text-align: left;
 }
 
@@ -41,13 +44,26 @@ table thead tr th.header{
 
 div.left,div.right{
     float: left;
-    width: 10%;
+    width: 5%;
 }
 div.center{
     float: left;
-    width: 80%;
+    width: 90%;
 }
 input[type="button"]:hover{
     background-color: black;
     color: white;
+}
+
+form label{
+    cursor: pointer;
+    margin-left: 20px;
+}
+form input[type='submit']{
+    cursor: pointer;
+    margin-left: 20px;
+    margin-top: 20px;
+}
+form input[type='submit']:hover{
+    background-color: #c1976c;
 }

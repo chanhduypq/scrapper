@@ -3,94 +3,8 @@
 require_once('include/simple_html_dom.php');
 set_time_limit(0);
 
-
-$couponGroupon = new CouponGroupon();
-$couponGroupon->saveDB('localhost', 'root', '', 'db');
-
-$couponRetailmenot = new CouponRetailmenot();
-$couponRetailmenot->saveDB('localhost', 'root', '', 'db');
-
-$conn = mysqli_connect('localhost', 'root', '', 'db');
-$coupons = array();
-$result = mysqli_query($conn, "SELECT used_today,coupon.code,coupon.title,expire,coupon.source,created_at,added_date FROM coupon");
-while ($row = mysqli_fetch_array($result)) {
-    if ($row['source'] == 'https://www.groupon.com/coupons/stores/amazon.com') {
-        $coupons[$row['code']]['groupon'] = $row;
-    }
-    if ($row['source'] == 'https://www.retailmenot.com/view/amazon.com') {
-        $coupons[$row['code']]['retailmenot'] = $row;
-    }
-}
-mysqli_query($conn, "DELETE FROM coupon_both");
-$sql = 'INSERT INTO coupon_both (title_groupon,title_retailmenot,code,expire,used_today,added_date) VALUES ';
-foreach ($coupons as $code=>$coupon) {
-    $expire=$used_today='NULL';
-    if(count($coupon)==1){
-        if(isset($coupon['groupon'])){
-            $title_groupon="'".str_replace("'", "\'", $coupon['groupon']['title'])."'";
-            $title_retailmenot='NULL';
-            $expire=($coupon['groupon']['expire']!=''?("'".$coupon['groupon']['expire']."'"):'NULL');
-            $used_today=($coupon['groupon']['used_today']!=''?$coupon['groupon']['used_today']:'NULL');
-            $added_date=$coupon['groupon']['added_date'];
-        }
-        else{
-            $title_retailmenot="'".str_replace("'", "\'", $coupon['retailmenot']['title'])."'";
-            $title_groupon='NULL';
-            $expire=($coupon['retailmenot']['expire']!=''?("'".$coupon['retailmenot']['expire']."'"):'NULL');
-            $used_today=($coupon['retailmenot']['used_today']!=''?$coupon['retailmenot']['used_today']:'NULL');
-            $added_date=$coupon['retailmenot']['added_date'];
-        }
-        
-    }
-    else{
-        $title_groupon="'".str_replace("'", "\'", $coupon['groupon']['title'])."'";
-        $title_retailmenot="'".str_replace("'", "\'", $coupon['retailmenot']['title'])."'";
-        if ($coupon['groupon']['expire'] != '' && $coupon['retailmenot']['expire'] != '') {
-            $date1 = new DateTime($coupon['groupon']['expire']);
-            $date2 = new DateTime($coupon['retailmenot']['expire']);
-            if ($date1 > $date2) {
-                $expire=$coupon['retailmenot']['expire'];
-            } else {
-                $expire=$coupon['groupon']['expire'];
-            }
-        } else {
-            if ($coupon['groupon']['expire'] != '') {
-                $expire="'".$coupon['groupon']['expire']."'";
-            } else if ($coupon['retailmenot']['expire'] != '') {
-                $expire="'".$coupon['retailmenot']['expire']."'";
-            }
-        }
-        
-        $date1 = new DateTime($coupon['groupon']['added_date']);
-        $date2 = new DateTime($coupon['retailmenot']['added_date']);
-        if ($date1 > $date2) {
-            $added_date=$coupon['retailmenot']['added_date'];
-        } else {
-            $added_date=$coupon['groupon']['added_date'];
-        }
-        
-        if ($coupon['groupon']['used_today'] != '' && $coupon['retailmenot']['used_today'] != '') {
-            if ($coupon['retailmenot']['used_today'] > $coupon['groupon']['used_today']) {
-                $used_today=$coupon['retailmenot']['used_today'];
-            } else {
-                $used_today=$coupon['groupon']['used_today'];
-            }
-        } else {
-            if ($coupon['groupon']['used_today'] != '') {
-                $used_today=$coupon['groupon']['used_today'];
-            } else if ($coupon['retailmenot']['used_today'] != '') {
-                $used_today=$coupon['retailmenot']['used_today'];
-            }
-        }
-        
-    }
-    
-    $sql .= "($title_groupon,$title_retailmenot,'" . str_replace("'", "\'", $code) . "',$expire,$used_today,'$added_date'),";
-}
-$sql= rtrim($sql,',');
-mysqli_query($conn, $sql);
-
-
+updateCoupon();
+updateCouponBoth();
 
 header('Location:index.php');
 
@@ -108,57 +22,20 @@ class CouponGroupon {
         if (count($this->allCoupons) == 0) {
             return;
         }
-        $this->deleteExpireCoupons($host, $username, $password, $databaseName);
-        
-        $coupons = $this->getCoupons($host, $username, $password, $databaseName);
-        $ids=array();
+        Coupon::deleteExpireCoupons($host, $username, $password, $databaseName, $this->rootUrl);
+
+        $coupons = Coupon::getCouponsBySource($host, $username, $password, $databaseName, $this->rootUrl);
+        $ids = array();
         foreach ($coupons as $coupon) {
-            if(in_array($coupon['code'], array_keys($this->allCoupons))){
-                $ids[]=$coupon['id'];
-                $this->allCoupons[$coupon['code']]['added_date']=$coupon['added_date'];
+            if (in_array($coupon['code'], array_keys($this->allCoupons))) {
+                $ids[] = $coupon['id'];
+                $this->allCoupons[$coupon['code']]['added_date'] = $coupon['added_date'];
             }
         }
-        if(count($ids)>0){
-            $this->delete($host, $username, $password, $databaseName, "id IN (". implode(",", $ids).")");
+        if (count($ids) > 0) {
+            Coupon::deleteByIds($host, $username, $password, $databaseName, $ids);
         }
-        $this->insertCoupons($host, $username, $password, $databaseName, $this->allCoupons);
-    }
-
-    private function deleteExpireCoupons($host, $username, $password, $databaseName) {
-        $conn = mysqli_connect($host, $username, $password, $databaseName);
-        $date=date('Y-m-d');
-        mysqli_query($conn, "DELETE FROM coupon WHERE source='" . rtrim($this->rootUrl, '/') . "' AND expire is not null AND expire < '$date'");
-    }
-    
-    private function delete($host, $username, $password, $databaseName, $whereAnd) {
-        $conn = mysqli_connect($host, $username, $password, $databaseName);
-        mysqli_query($conn, "DELETE FROM coupon WHERE source='" . rtrim($this->rootUrl, '/') . "' AND $whereAnd");
-    }
-
-    private function insertCoupons($host, $username, $password, $databaseName, $coupons) {
-        $sql = 'INSERT INTO coupon (title,code,source,expire,used_today,added_date) VALUES ';
-        foreach ($coupons as $coupon) {
-            if ($coupon['expire'] == '') {
-                $expire = 'NULL';
-            } else {
-                $expire = "'" . $coupon['expire'] . "'";
-            }
-            $sql .= "('" . str_replace("'", "\'", $coupon['title']) . "','" . str_replace("'", "\'", $coupon['code']) . "','" . rtrim($this->rootUrl, '/') . "',$expire,".$coupon['used_today'].",'".$coupon['added_date']."'),";
-        }
-        $sql = rtrim($sql, ',');
-
-        $conn = mysqli_connect($host, $username, $password, $databaseName);
-        mysqli_query($conn, $sql);
-    }
-
-    private function getCoupons($host, $username, $password, $databaseName) {
-        $coupons = array();
-        $conn = mysqli_connect($host, $username, $password, $databaseName);
-        $result = mysqli_query($conn, "SELECT * FROM coupon WHERE source='" . rtrim($this->rootUrl, '/') . "'");
-        while ($row = mysqli_fetch_array($result)) {
-            $coupons[] = $row;
-        }
-        return $coupons;
+        Coupon::insertCoupons($host, $username, $password, $databaseName, $this->allCoupons);
     }
 
     private function getLastPage() {
@@ -203,17 +80,17 @@ class CouponGroupon {
                     list($m, $d, $y) = explode("/", $expire);
                     $expire = "$y-$m-$d";
                 }
-                $used_today = $node->find("span[class='used-count-number']", 0)!=null?$node->find("span[class='used-count-number']", 0)->plaintext:'NULL';
-                if(!isset($allCoupons["$code"])){
+                $used_today = $node->find("span[class='used-count-number']", 0) != null ? $node->find("span[class='used-count-number']", 0)->plaintext : 'NULL';
+                if (!isset($allCoupons["$code"])) {
                     $allCoupons["$code"] = array(
                         'title' => $title,
                         'code' => $code,
                         'expire' => $expire,
                         'used_today' => $used_today,
-                        'added_date'=>date('Y-m-d')
+                        'source' => $this->rootUrl,
+                        'added_date' => date('Y-m-d')
                     );
                 }
-                
             }
         }
 
@@ -236,21 +113,21 @@ class CouponRetailmenot {
         if (count($this->allCoupons) == 0) {
             return;
         }
-        $this->deleteExpireCoupons($host, $username, $password, $databaseName);
-        
-        $coupons = $this->getCoupons($host, $username, $password, $databaseName);
-        $ids=array();
+        Coupon::deleteExpireCoupons($host, $username, $password, $databaseName, $this->rootUrl);
+
+        $coupons = Coupon::getCouponsBySource($host, $username, $password, $databaseName, $this->rootUrl);
+        $ids = array();
         foreach ($coupons as $coupon) {
-            if(in_array($coupon['code'], array_keys($this->allCoupons))){
-                $ids[]=$coupon['id'];
-                $this->allCoupons[$coupon['code']]['added_date']=$coupon['added_date'];
+            if (in_array($coupon['code'], array_keys($this->allCoupons))) {
+                $ids[] = $coupon['id'];
+                $this->allCoupons[$coupon['code']]['added_date'] = $coupon['added_date'];
             }
         }
-        if(count($ids)>0){
-            $this->delete($host, $username, $password, $databaseName, "id IN (". implode(",", $ids).")");
+        if (count($ids) > 0) {
+            Coupon::deleteByIds($host, $username, $password, $databaseName, $ids);
         }
-        
-        $this->insertCoupons($host, $username, $password, $databaseName, $this->allCoupons);
+
+        Coupon::insertCoupons($host, $username, $password, $databaseName, $this->allCoupons);
     }
 
     public function getAllCoupons() {
@@ -273,24 +150,24 @@ class CouponRetailmenot {
                     $tmp = $node->find('.offer-item-title');
                     $title = (isset($tmp[0])) ? trim($tmp[0]->plaintext) : '';
 
-                    $code=trim($code[0]->plaintext);
-                    if($node->find("div[class='offer-meta offer-meta-usage has-separator-dot']", 0)!=NULL){
+                    $code = trim($code[0]->plaintext);
+                    if ($node->find("div[class='offer-meta offer-meta-usage has-separator-dot']", 0) != NULL) {
                         $used_today = $node->find("div[class='offer-meta offer-meta-usage has-separator-dot']", 0)->plaintext;
                         $used_today = explode(' ', $used_today);
                         $used_today = $used_today[0];
+                    } else {
+                        $used_today = 'NULL';
                     }
-                    else{
-                        $used_today='NULL';
-                    }
-                    
+
                     //data
-                    if(!isset($data["$code"])){
+                    if (!isset($data["$code"])) {
                         $data["$code"] = array(
                             'title' => $title,
                             'code' => $code,
                             'expire' => '',
                             'used_today' => $used_today,
-                            'added_date'=>date('Y-m-d')
+                            'source' => $this->rootUrl,
+                            'added_date' => date('Y-m-d')
                         );
                     }
                 }
@@ -302,43 +179,6 @@ class CouponRetailmenot {
         }
 
         $this->allCoupons = array_merge($this->allCoupons, $data);
-    }
-
-    private function deleteExpireCoupons($host, $username, $password, $databaseName) {
-        $conn = mysqli_connect($host, $username, $password, $databaseName);
-        $date=date('Y-m-d');
-        mysqli_query($conn, "DELETE FROM coupon WHERE source='" . rtrim($this->rootUrl, '/') . "' AND expire is not null AND expire < '$date'");
-    }
-
-    private function delete($host, $username, $password, $databaseName, $whereAnd) {
-        $conn = mysqli_connect($host, $username, $password, $databaseName);
-        mysqli_query($conn, "DELETE FROM coupon WHERE source='" . rtrim($this->rootUrl, '/') . "' AND $whereAnd");
-    }
-
-    private function insertCoupons($host, $username, $password, $databaseName, $coupons) {
-        $sql = 'INSERT INTO coupon (title,code,source,expire,used_today,added_date) VALUES ';
-        foreach ($coupons as $coupon) {
-            if ($coupon['expire'] == '') {
-                $expire = 'NULL';
-            } else {
-                $expire = "'" . $coupon['expire'] . "'";
-            }
-            $sql .= "('" . str_replace("'", "\'", $coupon['title']) . "','" . str_replace("'", "\'", $coupon['code']) . "','" . rtrim($this->rootUrl, '/') . "',$expire,".$coupon['used_today'].",'".$coupon['added_date']."'),";
-        }
-        $sql = rtrim($sql, ',');
-
-        $conn = mysqli_connect($host, $username, $password, $databaseName);
-        mysqli_query($conn, $sql);
-    }
-
-    private function getCoupons($host, $username, $password, $databaseName) {
-        $coupons = array();
-        $conn = mysqli_connect($host, $username, $password, $databaseName);
-        $result = mysqli_query($conn, "SELECT * FROM coupon WHERE source='" . rtrim($this->rootUrl, '/') . "'");
-        while ($row = mysqli_fetch_array($result)) {
-            $coupons[] = $row;
-        }
-        return $coupons;
     }
 
     private function getFirstUrl() {
@@ -387,6 +227,144 @@ class CouponRetailmenot {
         return $content;
     }
 
+}
+
+class Coupon {
+
+    public static function insertCoupons($host, $username, $password, $databaseName, $coupons) {
+        $sql = 'INSERT INTO coupon (title,code,source,expire,used_today,added_date) VALUES ';
+        foreach ($coupons as $coupon) {
+            if ($coupon['expire'] == '') {
+                $expire = 'NULL';
+            } else {
+                $expire = "'" . $coupon['expire'] . "'";
+            }
+            $sql .= "('" . str_replace("'", "\'", $coupon['title']) . "','" . str_replace("'", "\'", $coupon['code']) . "','" . rtrim($coupon['source'], '/') . "',$expire," . $coupon['used_today'] . ",'" . $coupon['added_date'] . "'),";
+        }
+        $sql = rtrim($sql, ',');
+
+        $conn = mysqli_connect($host, $username, $password, $databaseName);
+        mysqli_query($conn, $sql);
+    }
+
+    public static function deleteExpireCoupons($host, $username, $password, $databaseName, $source) {
+        $conn = mysqli_connect($host, $username, $password, $databaseName);
+        $date = date('Y-m-d');
+        mysqli_query($conn, "DELETE FROM coupon WHERE source='" . rtrim($source, '/') . "' AND expire is not null AND expire < '$date'");
+    }
+
+    public static function getCouponsBySource($host, $username, $password, $databaseName, $source) {
+        $coupons = array();
+        $conn = mysqli_connect($host, $username, $password, $databaseName);
+        $result = mysqli_query($conn, "SELECT * FROM coupon WHERE source='" . rtrim($source, '/') . "'");
+        while ($row = mysqli_fetch_array($result)) {
+            $coupons[] = $row;
+        }
+        return $coupons;
+    }
+
+    public static function deleteByIds($host, $username, $password, $databaseName, $ids) {
+        if (is_array($ids) && count($ids) > 0) {
+            $conn = mysqli_connect($host, $username, $password, $databaseName);
+            mysqli_query($conn, "DELETE FROM coupon WHERE id IN (" . implode(',', $ids) . ")");
+        }
+    }
+    
+    public static function getAllCoupons($host, $username, $password, $databaseName) {
+        $conn = mysqli_connect($host, $username, $password, $databaseName);
+        $coupons = array();
+        $result = mysqli_query($conn, "SELECT used_today,coupon.code,coupon.title,expire,coupon.source,created_at,added_date FROM coupon");
+        while ($row = mysqli_fetch_array($result)) {
+            if ($row['source'] == 'https://www.groupon.com/coupons/stores/amazon.com') {
+                $coupons[$row['code']]['groupon'] = $row;
+            }
+            if ($row['source'] == 'https://www.retailmenot.com/view/amazon.com') {
+                $coupons[$row['code']]['retailmenot'] = $row;
+            }
+        }
+        return $coupons;
+    }
+
+}
+
+function updateCouponBoth() {
+    $conn = mysqli_connect('localhost', 'root', '', 'db');
+    
+    $coupons = Coupon::getAllCoupons('localhost', 'root', '', 'db');
+    
+    mysqli_query($conn, "DELETE FROM coupon_both");
+    
+    $sql = 'INSERT INTO coupon_both (title_groupon,title_retailmenot,code,expire,used_today,added_date) VALUES ';
+    foreach ($coupons as $code => $coupon) {
+        $expire = $used_today = 'NULL';
+        if (count($coupon) == 1) {
+            if (isset($coupon['groupon'])) {
+                $title_groupon = "'" . str_replace("'", "\'", $coupon['groupon']['title']) . "'";
+                $title_retailmenot = 'NULL';
+                $expire = ($coupon['groupon']['expire'] != '' ? ("'" . $coupon['groupon']['expire'] . "'") : 'NULL');
+                $used_today = ($coupon['groupon']['used_today'] != '' ? $coupon['groupon']['used_today'] : 'NULL');
+                $added_date = $coupon['groupon']['added_date'];
+            } else {
+                $title_retailmenot = "'" . str_replace("'", "\'", $coupon['retailmenot']['title']) . "'";
+                $title_groupon = 'NULL';
+                $expire = ($coupon['retailmenot']['expire'] != '' ? ("'" . $coupon['retailmenot']['expire'] . "'") : 'NULL');
+                $used_today = ($coupon['retailmenot']['used_today'] != '' ? $coupon['retailmenot']['used_today'] : 'NULL');
+                $added_date = $coupon['retailmenot']['added_date'];
+            }
+        } else {
+            $title_groupon = "'" . str_replace("'", "\'", $coupon['groupon']['title']) . "'";
+            $title_retailmenot = "'" . str_replace("'", "\'", $coupon['retailmenot']['title']) . "'";
+            if ($coupon['groupon']['expire'] != '' && $coupon['retailmenot']['expire'] != '') {
+                $date1 = new DateTime($coupon['groupon']['expire']);
+                $date2 = new DateTime($coupon['retailmenot']['expire']);
+                if ($date1 > $date2) {
+                    $expire = $coupon['retailmenot']['expire'];
+                } else {
+                    $expire = $coupon['groupon']['expire'];
+                }
+            } else {
+                if ($coupon['groupon']['expire'] != '') {
+                    $expire = "'" . $coupon['groupon']['expire'] . "'";
+                } else if ($coupon['retailmenot']['expire'] != '') {
+                    $expire = "'" . $coupon['retailmenot']['expire'] . "'";
+                }
+            }
+
+            $date1 = new DateTime($coupon['groupon']['added_date']);
+            $date2 = new DateTime($coupon['retailmenot']['added_date']);
+            if ($date1 > $date2) {
+                $added_date = $coupon['retailmenot']['added_date'];
+            } else {
+                $added_date = $coupon['groupon']['added_date'];
+            }
+
+            if ($coupon['groupon']['used_today'] != '' && $coupon['retailmenot']['used_today'] != '') {
+                if ($coupon['retailmenot']['used_today'] > $coupon['groupon']['used_today']) {
+                    $used_today = $coupon['retailmenot']['used_today'];
+                } else {
+                    $used_today = $coupon['groupon']['used_today'];
+                }
+            } else {
+                if ($coupon['groupon']['used_today'] != '') {
+                    $used_today = $coupon['groupon']['used_today'];
+                } else if ($coupon['retailmenot']['used_today'] != '') {
+                    $used_today = $coupon['retailmenot']['used_today'];
+                }
+            }
+        }
+
+        $sql .= "($title_groupon,$title_retailmenot,'" . str_replace("'", "\'", $code) . "',$expire,$used_today,'$added_date'),";
+    }
+    $sql = rtrim($sql, ',');
+    mysqli_query($conn, $sql);
+}
+
+function updateCoupon() {
+    $couponGroupon = new CouponGroupon();
+    $couponGroupon->saveDB('localhost', 'root', '', 'db');
+
+    $couponRetailmenot = new CouponRetailmenot();
+    $couponRetailmenot->saveDB('localhost', 'root', '', 'db');
 }
 
 ?>
