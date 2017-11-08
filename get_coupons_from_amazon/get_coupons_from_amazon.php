@@ -10,6 +10,8 @@ $couponGroupon->saveDB('localhost', 'root', '', 'db');
 $couponRetailmenot = new CouponRetailmenot();
 $couponRetailmenot->saveDB('localhost', 'root', '', 'db');
 
+header('Location:index.php');
+
 class CouponGroupon {
 
     private $rootUrl = "";

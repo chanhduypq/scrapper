@@ -1,0 +1,27 @@
+table, tr,th,td{
+    border: 1px solid black;
+}
+th,td{
+    text-align: center;
+}
+.expire{
+    color: blue;
+}
+table .code{
+    width: 10%;
+}
+table .groupon,table .retailmenot{
+    width: 45%;
+}
+div.left,div.right{
+    float: left;
+    width: 10%;
+}
+div.center{
+    float: left;
+    width: 80%;
+}
+input[type="button"]:hover{
+    background-color: black;
+    color: white;
+}
