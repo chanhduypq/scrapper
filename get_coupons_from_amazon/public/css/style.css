@@ -4,14 +4,14 @@ table, tr,th,td{
 th,td{
     text-align: center;
 }
-.expire{
-    color: blue;
-}
 table .code{
     width: 10%;
 }
 table .groupon,table .retailmenot{
-    width: 45%;
+    width: 35%;
+}
+table .expire,table .used_today{
+    width: 10%;
 }
 div.left,div.right{
     float: left;

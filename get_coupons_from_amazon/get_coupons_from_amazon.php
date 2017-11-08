@@ -38,7 +38,6 @@ class CouponGroupon {
         if(count($ids)>0){
             $this->delete($host, $username, $password, $databaseName, "id IN (". implode(",", $ids).")");
         }
-        
         $this->insertCoupons($host, $username, $password, $databaseName, $this->allCoupons);
     }
 
@@ -54,14 +53,14 @@ class CouponGroupon {
     }
 
     private function insertCoupons($host, $username, $password, $databaseName, $coupons) {
-        $sql = 'INSERT INTO coupon (title,code,source,expire) VALUES ';
+        $sql = 'INSERT INTO coupon (title,code,source,expire,used_today) VALUES ';
         foreach ($coupons as $coupon) {
             if ($coupon['expire'] == '') {
                 $expire = 'NULL';
             } else {
                 $expire = "'" . $coupon['expire'] . "'";
             }
-            $sql .= "('" . str_replace("'", "\'", $coupon['title']) . "','" . str_replace("'", "\'", $coupon['code']) . "','" . rtrim($this->rootUrl, '/') . "',$expire),";
+            $sql .= "('" . str_replace("'", "\'", $coupon['title']) . "','" . str_replace("'", "\'", $coupon['code']) . "','" . rtrim($this->rootUrl, '/') . "',$expire,".$coupon['used_today']."),";
         }
         $sql = rtrim($sql, ',');
 
@@ -121,11 +120,13 @@ class CouponGroupon {
                     list($m, $d, $y) = explode("/", $expire);
                     $expire = "$y-$m-$d";
                 }
+                $used_today = $node->find("span[class='used-count-number']", 0)!=null?$node->find("span[class='used-count-number']", 0)->plaintext:'NULL';
                 if(!isset($allCoupons["$code"])){
                     $allCoupons["$code"] = array(
                         'title' => $title,
                         'code' => $code,
                         'expire' => $expire,
+                        'used_today' => $used_today,
                     );
                 }
                 
@@ -188,12 +189,22 @@ class CouponRetailmenot {
                     $title = (isset($tmp[0])) ? trim($tmp[0]->plaintext) : '';
 
                     $code=trim($code[0]->plaintext);
+                    if($node->find("div[class='offer-meta offer-meta-usage has-separator-dot']", 0)!=NULL){
+                        $used_today = $node->find("div[class='offer-meta offer-meta-usage has-separator-dot']", 0)->plaintext;
+                        $used_today = explode(' ', $used_today);
+                        $used_today = $used_today[0];
+                    }
+                    else{
+                        $used_today='NULL';
+                    }
+                    
                     //data
                     if(!isset($data["$code"])){
                         $data["$code"] = array(
                             'title' => $title,
                             'code' => $code,
                             'expire' => '',
+                            'used_today' => $used_today,
                         );
                     }
                 }
@@ -219,14 +230,14 @@ class CouponRetailmenot {
     }
 
     private function insertCoupons($host, $username, $password, $databaseName, $coupons) {
-        $sql = 'INSERT INTO coupon (title,code,source,expire) VALUES ';
+        $sql = 'INSERT INTO coupon (title,code,source,expire,used_today) VALUES ';
         foreach ($coupons as $coupon) {
             if ($coupon['expire'] == '') {
                 $expire = 'NULL';
             } else {
                 $expire = "'" . $coupon['expire'] . "'";
             }
-            $sql .= "('" . str_replace("'", "\'", $coupon['title']) . "','" . str_replace("'", "\'", $coupon['code']) . "','" . rtrim($this->rootUrl, '/') . "',$expire),";
+            $sql .= "('" . str_replace("'", "\'", $coupon['title']) . "','" . str_replace("'", "\'", $coupon['code']) . "','" . rtrim($this->rootUrl, '/') . "',$expire,".$coupon['used_today']."),";
         }
         $sql = rtrim($sql, ',');
 

@@ -10,7 +10,7 @@ Target Server Type    : MYSQL
 Target Server Version : 50505
 File Encoding         : 65001
 
-Date: 2017-11-08 09:58:49
+Date: 2017-11-08 11:35:19
 */
 
 SET FOREIGN_KEY_CHECKS=0;
@@ -25,16 +25,7 @@ CREATE TABLE `coupon` (
   `code` varchar(100) DEFAULT NULL,
   `source` varchar(100) DEFAULT NULL,
   `expire` timestamp NULL DEFAULT NULL,
+  `used_today` int(11) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
--- ----------------------------
--- Records of coupon
--- ----------------------------
-
--- ----------------------------
--- View structure for coupon_code
--- ----------------------------
-DROP VIEW IF EXISTS `coupon_code`;
-CREATE VIEW `coupon_code` AS SELECT coupon.`code` from coupon GROUP BY `code` ;
+) ENGINE=InnoDB AUTO_INCREMENT=109 DEFAULT CHARSET=utf8;

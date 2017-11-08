@@ -1,40 +1,15 @@
 <?php 
-$numberRowPerPage = 10;
-$rangeCount = 3;
-
-if (isset($_GET['page']) && ctype_digit($_GET['page'])) {
-    $page = $_GET['page'];
-} else {
-    $page = 1;
-}
-$offset = ($page - 1) * $numberRowPerPage;
-
 $conn = mysqli_connect('localhost', 'root', '', 'db');
 
 $coupons = array();
 
-$result = mysqli_query($conn, "SELECT count(code) as count FROM coupon_code");
-$countCode = 0;
-if ($row = mysqli_fetch_array($result)) {
-    $countCode = $row['count'];
-}
-
-$result = mysqli_query($conn, "SELECT code FROM coupon_code limit $offset,$numberRowPerPage");
-$codes = array();
+$result = mysqli_query($conn, "SELECT used_today,coupon.code,coupon.title,DATE_FORMAT(coupon.expire,'%d %m %Y') as expire,coupon.source FROM coupon ORDER BY created_at DESC");
 while ($row = mysqli_fetch_array($result)) {
-    $codes[] = "'" . $row['code'] . "'";
-}
-
-if (count($codes) > 0) {
-    $codesIn = implode(',', $codes);
-    $result = mysqli_query($conn, "SELECT coupon.code,coupon.title,DATE_FORMAT(coupon.expire,'%m/%d/%Y') as expire,coupon.source FROM coupon WHERE code IN ($codesIn) ORDER BY created_at DESC");
-    while ($row = mysqli_fetch_array($result)) {
-        if ($row['source'] == 'https://www.groupon.com/coupons/stores/amazon.com') {
-            $coupons[$row['code']]['groupon'] = $row;
-        }
-        if ($row['source'] == 'https://www.retailmenot.com/view/amazon.com') {
-            $coupons[$row['code']]['retailmenot'] = $row;
-        }
+    if ($row['source'] == 'https://www.groupon.com/coupons/stores/amazon.com') {
+        $coupons[$row['code']]['groupon'] = $row;
+    }
+    if ($row['source'] == 'https://www.retailmenot.com/view/amazon.com') {
+        $coupons[$row['code']]['retailmenot'] = $row;
     }
 }
 ?>
@@ -65,7 +40,7 @@ and open the template in the editor.
             <div style="float: right;padding: 50px;">
                 <input type="button" value="Get coupons" style="cursor: pointer;" onclick="getCouponCode(this);"/>
             </div>            
-            <div style="width: 100%;min-height: 400px;max-height: 400px;overflow-y: auto;margin: 0 auto;text-align: center;">
+            <div style="width: 100%;margin: 0 auto;text-align: center;">
                 <table style="width: 100%;">
                     <thead>
                         <tr>
@@ -77,6 +52,12 @@ and open the template in the editor.
                             </th>
                             <th class="retailmenot">
                                 https://www.retailmenot.com/view/amazon.com
+                            </th>
+                            <th class="used_today">
+                                used today
+                            </th>
+                            <th class="expire">
+                                Expiry
                             </th>
                         </tr>
                     </thead>
@@ -90,14 +71,32 @@ and open the template in the editor.
                             <td class="groupon">
                                 <?php 
                                 if(isset($coupon['groupon'])){
-                                    echo $coupon['groupon']['title'].'<div class="expire">'.($coupon['groupon']['expire']!=''?'Expires '.$coupon['groupon']['expire']:'').'</div>';
+                                    echo $coupon['groupon']['title'];
                                 }
                                 ?>
                             </td>
                             <td class="retailmenot">
                                 <?php 
                                 if(isset($coupon['retailmenot'])){
-                                    echo $coupon['retailmenot']['title'].'<div class="expire">'.($coupon['retailmenot']['expire']!=''?'Expires '.$coupon['retailmenot']['expire']:'').'</div>';
+                                    echo $coupon['retailmenot']['title'];
+                                }
+                                ?>
+                            </td>
+                            <td class="used_today">
+                                <?php 
+                                if (isset($coupon['groupon']) && $coupon['groupon']['used_today'] != '') {
+                                    echo $coupon['groupon']['used_today'];
+                                } else if (isset($coupon['retailmenot']) && $coupon['retailmenot']['used_today'] != '') {
+                                    echo $coupon['retailmenot']['used_today'];
+                                }
+                                    ?>
+                            </td>
+                            <td class="expire">
+                                <?php 
+                                if (isset($coupon['groupon']) && $coupon['groupon']['expire'] != '') {
+                                    echo $coupon['groupon']['expire'];
+                                } else if (isset($coupon['retailmenot']) && $coupon['retailmenot']['expire'] != '') {
+                                    echo $coupon['retailmenot']['expire'];
                                 }
                                 ?>
                             </td>
@@ -105,88 +104,7 @@ and open the template in the editor.
                         <?php 
                         }
                         ?>
-                    </tbody>
-                    <?php 
-                    if ($countCode > 0) {
-                        $numberPage = ceil($countCode / $numberRowPerPage);
-
-                        $rangeNumber = ceil($numberPage / $rangeCount);
-                        $range = ceil($page / $rangeCount);
-                        $start = $range * $rangeCount - ($rangeCount - 1);
-
-                        if ($page == 1) {
-                            $hrefPrev = "#";
-                            $hrefFirst = "#";
-                            $codePrevFirst = "selected";
-                        } else {
-                            $hrefFirst = "?page=1";
-                            $hrefPrev = "?page=" . ($page - 1);
-                            $codePrevFirst = "not_selected";
-                        }
-
-                        if ($page == $numberPage) {
-                            $hrefNext = "#";
-                            $hrefLast = "#";
-                            $codeNextLast = "selected";
-                        } else {
-                            $hrefLast = "?page=$numberPage";
-                            $hrefNext = "?page=" . ($page + 1);
-                            $codeNextLast = "not_selected";
-                        }
-                    ?>
-                    <tfoot>
-                        <tr style="height: 50px;background-color: #c1976c;">
-                            <td colspan="3" class="pagination">
-
-                                <?php 
-                                if ($numberPage>1){?>
-                                <span class="<?php echo $codePrevFirst; ?>" onclick="window.location = '<?php echo $hrefFirst; ?>';">
-                                    First
-                                </span>
-                                <span class="<?php echo $codePrevFirst; ?>" onclick="window.location = '<?php echo $hrefPrev; ?>';">
-                                    Previous
-                                </span>
-                                <?php 
-                                }
-                                ?>
-                                <?php
-                                if ($numberPage>1){
-                                    for ($i = 1; $i <= $rangeCount && $start <= $numberPage; $i++) {
-                                        if ($page == $start) {
-                                            $href = "#";
-                                            $class = 'selected';
-                                        } else {
-                                            $href = "?page=$start";
-                                            $class = 'not_selected';
-                                        }
-                                        ?>
-                                        <span class="<?php echo $class; ?>" onclick="window.location = '<?php echo $href; ?>';">
-                                            <?php echo $start; ?>
-                                        </span>
-                                        <?php
-                                        $start++;
-                                    }
-                                }
-                                ?>
-
-                                <?php 
-                                if ($numberPage>1){?>
-                                <span class="<?php echo $codeNextLast; ?>" onclick="window.location = '<?php echo $hrefNext; ?>';">
-                                    Next
-                                </span>
-                                <span class="<?php echo $codeNextLast; ?>" onclick="window.location = '<?php echo $hrefLast; ?>';">
-                                    Last
-                                </span>
-                                <?php 
-                                }
-                                ?>
-
-                            </td>
-                        </tr>
-                    </tfoot>
-                    <?php 
-                    }
-                    ?>
+                    </tbody>                    
                 </table>
             </div>
         </div>
