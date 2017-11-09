@@ -50,7 +50,7 @@ $conn = mysqli_connect('localhost', 'root', '', 'db');
 
 $coupons = array();
 
-$result = mysqli_query($conn, "SELECT used_today,code,title_groupon,title_retailmenot,DATE_FORMAT(expire,'%d %m %Y') as expire,created_at,DATE_FORMAT(added_date,'%d %m %Y') as added_date FROM coupon_both $where ORDER BY coupon_both.$orderBy");
+$result = mysqli_query($conn, "SELECT used_today,code,title_groupon,title_retailmenot,DATE_FORMAT(expire,'%d %m %Y') as expire,created_at,DATE_FORMAT(added_date,'%d %m %Y') as added_date,DATE_FORMAT(created_at,'%H:%i:%s-----%d %m %Y') as created_at_label FROM coupon_both $where ORDER BY coupon_both.$orderBy");
 while ($row = mysqli_fetch_array($result)) {
     $coupons[] = $row;
 }
@@ -132,17 +132,17 @@ and open the template in the editor.
             <form method="POST" action="index.php">
                 <label>
                     <input type="checkbox" name="groupon" value="groupon"<?php if(count($_POST)==0||isset($_POST['groupon'])) echo ' checked="checked"';?>/>
-                    just groupon (<?php echo $countGroupon;?>)
+                    Just groupon (<?php echo $countGroupon;?>)
                 </label>
                 <br>
                 <label>
                     <input type="checkbox" name="retailmenot" value="retailmenot"<?php if(count($_POST)==0||isset($_POST['retailmenot'])) echo ' checked="checked"';?>/>
-                    just retail me not (<?php echo $countRetailmenot;?>)
+                    Just retail me not (<?php echo $countRetailmenot;?>)
                 </label>
                 <br>
                 <label>
                     <input type="checkbox" name="both" value="both"<?php if(count($_POST)==0||isset($_POST['both'])) echo ' checked="checked"';?>/>
-                    coupon on both (<?php echo $countBoth;?>)
+                    Coupon on both (<?php echo $countBoth;?>)
                 </label>
                 <br>
                 <input type="hidden" value="<?php echo $order_key;?>" name="order_key" id="order_key"/>
@@ -153,7 +153,7 @@ and open the template in the editor.
                 <h3 style="text-align: center;width: 100%;">
                     <?php 
                     if(count($coupons)>0) 
-                        echo $coupons[0]['created_at'];
+                        echo str_replace ('-', '&nbsp;', $coupons[0]['created_at_label']);
                     ?>
                 </h3>
                 <table style="width: 100%;">
@@ -175,7 +175,7 @@ and open the template in the editor.
                                 used today
                             </th>
                             <th class="expire header<?php echo $classForExpiry;?>">
-                                Expiry
+                                expiry
                             </th>
                         </tr>
                     </thead>
