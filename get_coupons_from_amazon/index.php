@@ -13,7 +13,7 @@ if (count($_POST) == 0) {
         $order_value = $_POST['order_value'];
         $orderBy = "$order_key $order_value";
 
-        if ($order_key == 'used_today') {
+        if ($order_key == 'used_today_groupon') {
             if ($order_value == 'asc') {
                 $classForUsedToday = ' headerSortDown';
             } else {
@@ -99,15 +99,15 @@ and open the template in the editor.
             jQuery(function ($){
                 $("th.used_today.header").click(function (){
                     if($(this).hasClass('headerSortDown')){
-                        $("#order_key").val('used_today');
+                        $("#order_key").val('used_today_groupon');
                         $("#order_value").val('desc');
                     }
                     else if($(this).hasClass('headerSortUp')){
-                        $("#order_key").val('used_today');
+                        $("#order_key").val('used_today_groupon');
                         $("#order_value").val('asc');
                     }
                     else{
-                        $("#order_key").val('used_today');
+                        $("#order_key").val('used_today_groupon');
                         $("#order_value").val('asc');
                     }
                     $("form").submit();
