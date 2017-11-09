@@ -31,7 +31,7 @@ $conn = mysqli_connect('localhost', 'root', '', 'db');
 
 $coupons = array();
 
-$result = mysqli_query($conn, "SELECT used_today,code,title_groupon,title_retailmenot,DATE_FORMAT(expire,'%d %m %Y') as expire,created_at FROM coupon_both ORDER BY coupon_both.$orderBy");
+$result = mysqli_query($conn, "SELECT used_today,code,title_groupon,title_retailmenot,DATE_FORMAT(expire,'%d %m %Y') as expire,created_at,DATE_FORMAT(added_date,'%d %m %Y') as added_date FROM coupon_both ORDER BY coupon_both.$orderBy");
 while ($row = mysqli_fetch_array($result)) {
     $coupons[]=$row;
 }
@@ -77,6 +77,9 @@ and open the template in the editor.
                             <th class="code">
                                 code
                             </th>
+                            <th class="first_added">
+                                first date
+                            </th>
                             <th class="groupon">
                                 https://www.groupon.com/coupons/stores/amazon.com
                             </th>
@@ -97,6 +100,9 @@ and open the template in the editor.
                         <tr>
                             <td class="code">
                                 <?php echo $coupon['code'];?>
+                            </td>
+                            <td class="first_added">
+                                <?php echo $coupon['added_date'];?>
                             </td>
                             <td class="groupon">
                                 <?php echo $coupon['title_groupon'];?>

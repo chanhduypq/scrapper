@@ -7,8 +7,11 @@ th,td{
 table .code{
     width: 10%;
 }
+table .first_added{
+    width: 14%;
+}
 table .groupon,table .retailmenot{
-    width: 35%;
+    width: 28%;
 }
 table .expire,table .used_today{
     width: 10%;

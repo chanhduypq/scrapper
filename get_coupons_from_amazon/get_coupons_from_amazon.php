@@ -12,7 +12,7 @@ $couponRetailmenot->saveDB('localhost', 'root', '', 'db');
 
 $conn = mysqli_connect('localhost', 'root', '', 'db');
 $coupons = array();
-$result = mysqli_query($conn, "SELECT used_today,coupon.code,coupon.title,expire,coupon.source,created_at FROM coupon ORDER BY created_at DESC");
+$result = mysqli_query($conn, "SELECT used_today,coupon.code,coupon.title,expire,coupon.source,created_at,added_date FROM coupon");
 while ($row = mysqli_fetch_array($result)) {
     if ($row['source'] == 'https://www.groupon.com/coupons/stores/amazon.com') {
         $coupons[$row['code']]['groupon'] = $row;
@@ -22,7 +22,7 @@ while ($row = mysqli_fetch_array($result)) {
     }
 }
 mysqli_query($conn, "DELETE FROM coupon_both");
-$sql = 'INSERT INTO coupon_both (title_groupon,title_retailmenot,code,expire,used_today) VALUES ';
+$sql = 'INSERT INTO coupon_both (title_groupon,title_retailmenot,code,expire,used_today,added_date) VALUES ';
 foreach ($coupons as $code=>$coupon) {
     $expire=$used_today='NULL';
     if(count($coupon)==1){
@@ -31,12 +31,14 @@ foreach ($coupons as $code=>$coupon) {
             $title_retailmenot='NULL';
             $expire=($coupon['groupon']['expire']!=''?("'".$coupon['groupon']['expire']."'"):'NULL');
             $used_today=($coupon['groupon']['used_today']!=''?$coupon['groupon']['used_today']:'NULL');
+            $added_date=$coupon['groupon']['added_date'];
         }
         else{
             $title_retailmenot="'".str_replace("'", "\'", $coupon['retailmenot']['title'])."'";
             $title_groupon='NULL';
             $expire=($coupon['retailmenot']['expire']!=''?("'".$coupon['retailmenot']['expire']."'"):'NULL');
             $used_today=($coupon['retailmenot']['used_today']!=''?$coupon['retailmenot']['used_today']:'NULL');
+            $added_date=$coupon['retailmenot']['added_date'];
         }
         
     }
@@ -59,6 +61,14 @@ foreach ($coupons as $code=>$coupon) {
             }
         }
         
+        $date1 = new DateTime($coupon['groupon']['added_date']);
+        $date2 = new DateTime($coupon['retailmenot']['added_date']);
+        if ($date1 > $date2) {
+            $added_date=$coupon['retailmenot']['added_date'];
+        } else {
+            $added_date=$coupon['groupon']['added_date'];
+        }
+        
         if ($coupon['groupon']['used_today'] != '' && $coupon['retailmenot']['used_today'] != '') {
             if ($coupon['retailmenot']['used_today'] > $coupon['groupon']['used_today']) {
                 $used_today=$coupon['retailmenot']['used_today'];
@@ -75,7 +85,7 @@ foreach ($coupons as $code=>$coupon) {
         
     }
     
-    $sql .= "($title_groupon,$title_retailmenot,'" . str_replace("'", "\'", $code) . "',$expire,$used_today),";
+    $sql .= "($title_groupon,$title_retailmenot,'" . str_replace("'", "\'", $code) . "',$expire,$used_today,'$added_date'),";
 }
 $sql= rtrim($sql,',');
 mysqli_query($conn, $sql);
@@ -105,6 +115,7 @@ class CouponGroupon {
         foreach ($coupons as $coupon) {
             if(in_array($coupon['code'], array_keys($this->allCoupons))){
                 $ids[]=$coupon['id'];
+                $this->allCoupons[$coupon['code']]['added_date']=$coupon['added_date'];
             }
         }
         if(count($ids)>0){
@@ -125,14 +136,14 @@ class CouponGroupon {
     }
 
     private function insertCoupons($host, $username, $password, $databaseName, $coupons) {
-        $sql = 'INSERT INTO coupon (title,code,source,expire,used_today) VALUES ';
+        $sql = 'INSERT INTO coupon (title,code,source,expire,used_today,added_date) VALUES ';
         foreach ($coupons as $coupon) {
             if ($coupon['expire'] == '') {
                 $expire = 'NULL';
             } else {
                 $expire = "'" . $coupon['expire'] . "'";
             }
-            $sql .= "('" . str_replace("'", "\'", $coupon['title']) . "','" . str_replace("'", "\'", $coupon['code']) . "','" . rtrim($this->rootUrl, '/') . "',$expire,".$coupon['used_today']."),";
+            $sql .= "('" . str_replace("'", "\'", $coupon['title']) . "','" . str_replace("'", "\'", $coupon['code']) . "','" . rtrim($this->rootUrl, '/') . "',$expire,".$coupon['used_today'].",'".$coupon['added_date']."'),";
         }
         $sql = rtrim($sql, ',');
 
@@ -199,6 +210,7 @@ class CouponGroupon {
                         'code' => $code,
                         'expire' => $expire,
                         'used_today' => $used_today,
+                        'added_date'=>date('Y-m-d')
                     );
                 }
                 
@@ -231,6 +243,7 @@ class CouponRetailmenot {
         foreach ($coupons as $coupon) {
             if(in_array($coupon['code'], array_keys($this->allCoupons))){
                 $ids[]=$coupon['id'];
+                $this->allCoupons[$coupon['code']]['added_date']=$coupon['added_date'];
             }
         }
         if(count($ids)>0){
@@ -277,6 +290,7 @@ class CouponRetailmenot {
                             'code' => $code,
                             'expire' => '',
                             'used_today' => $used_today,
+                            'added_date'=>date('Y-m-d')
                         );
                     }
                 }
@@ -302,14 +316,14 @@ class CouponRetailmenot {
     }
 
     private function insertCoupons($host, $username, $password, $databaseName, $coupons) {
-        $sql = 'INSERT INTO coupon (title,code,source,expire,used_today) VALUES ';
+        $sql = 'INSERT INTO coupon (title,code,source,expire,used_today,added_date) VALUES ';
         foreach ($coupons as $coupon) {
             if ($coupon['expire'] == '') {
                 $expire = 'NULL';
             } else {
                 $expire = "'" . $coupon['expire'] . "'";
             }
-            $sql .= "('" . str_replace("'", "\'", $coupon['title']) . "','" . str_replace("'", "\'", $coupon['code']) . "','" . rtrim($this->rootUrl, '/') . "',$expire,".$coupon['used_today']."),";
+            $sql .= "('" . str_replace("'", "\'", $coupon['title']) . "','" . str_replace("'", "\'", $coupon['code']) . "','" . rtrim($this->rootUrl, '/') . "',$expire,".$coupon['used_today'].",'".$coupon['added_date']."'),";
         }
         $sql = rtrim($sql, ',');
 
