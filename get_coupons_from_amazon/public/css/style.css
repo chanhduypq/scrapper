@@ -7,6 +7,10 @@ th,td{
 table .code{
     width: 10%;
 }
+table td.code{
+    color: blue;
+    cursor: pointer;
+}
 table .first_added{
     width: 14%;
 }
@@ -55,15 +59,3 @@ input[type="button"]:hover{
     color: white;
 }
 
-form label{
-    cursor: pointer;
-    margin-left: 20px;
-}
-form input[type='submit']{
-    cursor: pointer;
-    margin-left: 20px;
-    margin-top: 20px;
-}
-form input[type='submit']:hover{
-    background-color: #c1976c;
-}

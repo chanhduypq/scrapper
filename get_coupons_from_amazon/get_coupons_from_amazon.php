@@ -294,21 +294,22 @@ function updateCouponBoth() {
     
     mysqli_query($conn, "DELETE FROM coupon_both");
     
-    $sql = 'INSERT INTO coupon_both (title_groupon,title_retailmenot,code,expire,used_today,added_date) VALUES ';
+    $sql = 'INSERT INTO coupon_both (title_groupon,title_retailmenot,code,expire,added_date,used_today_groupon,used_today_retailmenot) VALUES ';
+    $sql_coupon_detail = 'INSERT INTO coupon_detail (coupon_code,used_groupon,used_retailmenot) VALUES ';
     foreach ($coupons as $code => $coupon) {
-        $expire = $used_today = 'NULL';
+        $expire =$used_today_groupon=$used_today_retailmenot= 'NULL';
         if (count($coupon) == 1) {
             if (isset($coupon['groupon'])) {
                 $title_groupon = "'" . str_replace("'", "\'", $coupon['groupon']['title']) . "'";
                 $title_retailmenot = 'NULL';
                 $expire = ($coupon['groupon']['expire'] != '' ? ("'" . $coupon['groupon']['expire'] . "'") : 'NULL');
-                $used_today = ($coupon['groupon']['used_today'] != '' ? $coupon['groupon']['used_today'] : 'NULL');
+                $used_today_groupon = ($coupon['groupon']['used_today'] != '' ? $coupon['groupon']['used_today'] : 'NULL');
                 $added_date = $coupon['groupon']['added_date'];
             } else {
                 $title_retailmenot = "'" . str_replace("'", "\'", $coupon['retailmenot']['title']) . "'";
                 $title_groupon = 'NULL';
                 $expire = ($coupon['retailmenot']['expire'] != '' ? ("'" . $coupon['retailmenot']['expire'] . "'") : 'NULL');
-                $used_today = ($coupon['retailmenot']['used_today'] != '' ? $coupon['retailmenot']['used_today'] : 'NULL');
+                $used_today_retailmenot = ($coupon['retailmenot']['used_today'] != '' ? $coupon['retailmenot']['used_today'] : 'NULL');
                 $added_date = $coupon['retailmenot']['added_date'];
             }
         } else {
@@ -338,25 +339,18 @@ function updateCouponBoth() {
                 $added_date = $coupon['groupon']['added_date'];
             }
 
-            if ($coupon['groupon']['used_today'] != '' && $coupon['retailmenot']['used_today'] != '') {
-                if ($coupon['retailmenot']['used_today'] > $coupon['groupon']['used_today']) {
-                    $used_today = $coupon['retailmenot']['used_today'];
-                } else {
-                    $used_today = $coupon['groupon']['used_today'];
-                }
-            } else {
-                if ($coupon['groupon']['used_today'] != '') {
-                    $used_today = $coupon['groupon']['used_today'];
-                } else if ($coupon['retailmenot']['used_today'] != '') {
-                    $used_today = $coupon['retailmenot']['used_today'];
-                }
-            }
+            
+            $used_today_groupon = ($coupon['groupon']['used_today'] != '' ? $coupon['groupon']['used_today'] : 'NULL');
+            $used_today_retailmenot = ($coupon['retailmenot']['used_today'] != '' ? $coupon['retailmenot']['used_today'] : 'NULL');
         }
 
-        $sql .= "($title_groupon,$title_retailmenot,'" . str_replace("'", "\'", $code) . "',$expire,$used_today,'$added_date'),";
+        $sql .= "($title_groupon,$title_retailmenot,'" . str_replace("'", "\'", $code) . "',$expire,'$added_date',$used_today_groupon,$used_today_retailmenot),";
+        $sql_coupon_detail .= "('" . str_replace("'", "\'", $code) . "',$used_today_groupon,$used_today_retailmenot),";
     }
     $sql = rtrim($sql, ',');
+    $sql_coupon_detail = rtrim($sql_coupon_detail, ',');
     mysqli_query($conn, $sql);
+    mysqli_query($conn, $sql_coupon_detail);
 }
 
 function updateCoupon() {
