@@ -21,17 +21,27 @@ class Products {
 
         $url = 'https://www.amazon.com/Best-Sellers-Books-Medical/zgbs/books/173514/ref=zg_bs_unv_b_2_227567_2';
         $this->file = fopen("products.csv", "w");
-        fputcsv($this->file, array('category1', 'category2', 'rank', 'price', 'Publisher', 'ISBN10', 'ISBN13', 'OtherRanks'));
+        fputcsv($this->file, array('category1', 'category2', 'rank', 'price', 'Publisher', 'ISBN10', 'ISBN13','ASIN', 'OtherRanks'));
         $links = $this->getAllFirstChildrenLinks($url);
         foreach ($links as $link) {
             //get page 1
-            echo $link;
+            echo $link.'<br>\n';
             $this->getProducts($link);
-//            break;
             //get page 2,3,4,5
             $linkPagings = $this->getPagingLinks($link);
             foreach ($linkPagings as $linkPaging) {
                 $this->getProducts($linkPaging);
+            }
+            $link_category2s= $this->getAllCategory2ChildrenLinks($link);
+            foreach ($link_category2s as $link_category2){
+                //get page 1
+                echo 'category2:'.$link_category2['link'].'<br>\n';
+                $this->getProducts($link_category2['link'],$link_category2['label']);
+                //get page 2,3,4,5
+                $linkPagings = $this->getPagingLinks($link_category2['link']);
+                foreach ($linkPagings as $linkPaging) {
+                    $this->getProducts($linkPaging,$link_category2['label']);
+                }
             }
         }
 
@@ -43,27 +53,25 @@ class Products {
 //        }
         fclose($this->file);
     }
+    
 
-    private function getProducts($url) {
+    private function getProducts($url,$category2='') {
         $html = $this->curl_getContent($url);
 
         $html_base = new simple_html_dom();
         $html_base->load($html);
 
         $tmp = $html_base->find("div.zg_itemImmersion");
-        if ($html_base->find("#zg_browseRoot .zg_selected", 0) != NULL) {
-            $this->category1 = $html_base->find("#zg_browseRoot .zg_selected", 0)->plaintext;
-        } 
+        if($category2==''){
+            if ($html_base->find("#zg_browseRoot .zg_selected", 0) != NULL) {
+                $this->category1 = $html_base->find("#zg_browseRoot .zg_selected", 0)->plaintext;
+            } 
+        }
+        
 
         foreach ($tmp as $div) {
-            if(count($div->find('i.a-icon-star span.a-icon-alt'))>0){
-                $nodeRating=$div->find('i.a-icon-star span.a-icon-alt')[0];
-                $rank= explode(" ", $nodeRating->plaintext);
-                $rank= $rank[0];
-            }
-            else{
-                $rank='';
-            }
+
+            $rank= rtrim(trim($div->find("span[class='zg_rankNumber']",0)->plaintext),'.');
             $url = 'https://www.amazon.com' . trim($div->find('a.a-link-normal')[0]->href);
             
             if ($div->find('.p13n-sc-price', 0) != null) {
@@ -72,7 +80,7 @@ class Products {
                 $price=$div->find('span[class="a-size-base a-color-price"]', 0)->plaintext;
             }
             $data['category1'] = $this->category1;
-            $data['category2'] = '';
+            $data['category2'] = $category2;
             $data['rank'] =$rank;
             $data['price'] = $price;
             $this->getProduct($url, $data);
@@ -87,6 +95,7 @@ class Products {
         $data['Publisher'] = '';
         $data['ISBN10'] = '';
         $data['ISBN13'] = '';
+        $data['ASIN'] = '';
         $data['OtherRanks'] = '';
         if($productDetailsTable==NULL){
             return;
@@ -102,6 +111,9 @@ class Products {
             }
             else if($bNode->plaintext=='ISBN-10:'){
                 $data['ISBN10'] = str_replace('ISBN-10:', '', $bNode->parent()->plaintext);
+                if(strlen($data['ISBN10'])==9){
+                    $data['ISBN10']='0'.$data['ISBN10'];
+                }
             }
             else if($bNode->plaintext=='ISBN-13:'){
                 $data['ISBN13'] = str_replace('ISBN-13:', '', $bNode->parent()->plaintext);
@@ -112,6 +124,9 @@ class Products {
                     $OtherRanks=str_replace($span->plaintext, '', $OtherRanks);
                 }
                 $data['OtherRanks'] =trim($OtherRanks);
+            }
+            else if($bNode->plaintext=='ASIN:'){
+                $data['ASIN'] = str_replace('ASIN:', '', $bNode->parent()->plaintext);
             }
         }
         
@@ -162,6 +177,24 @@ class Products {
         $tmp = $tmp[0]->parent()->next_sibling()->find("a");
         for ($i = 0; $i < count($tmp); $i++) {
             $links[] = $tmp[$i]->href;
+        }
+
+        return $links;
+    }
+    
+    private function getAllCategory2ChildrenLinks($url) {
+        $links = array();
+
+        $html = $this->curl_getContent($url);
+
+        $html_base = new simple_html_dom();
+        $html_base->load($html);
+
+        $tmp = $html_base->find("#zg_browseRoot .zg_selected");
+
+        $tmp = $tmp[0]->parent()->next_sibling()->find("a");
+        for ($i = 0; $i < count($tmp); $i++) {
+            $links[] =array('link'=> $tmp[$i]->href,'label'=>$tmp[$i]->plaintext);
         }
 
         return $links;
