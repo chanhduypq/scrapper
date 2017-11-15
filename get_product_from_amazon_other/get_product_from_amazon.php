@@ -10,126 +10,114 @@ $amu->getAllData();
 class Products {
 
     public $allData = array();
-
     public $file;
     public $category1;
-
-
-
 
     public function getAllData() {
 
         $url = 'https://www.amazon.com/Best-Sellers-Books-Medical/zgbs/books/173514/ref=zg_bs_unv_b_2_227567_2';
         $this->file = fopen("products.csv", "w");
-        fputcsv($this->file, array('category1', 'category2', 'rank', 'price', 'Publisher', 'ISBN10', 'ISBN13','ASIN', 'OtherRanks'));
+        fputcsv($this->file, array('category1', 'category2', 'rank', 'price', 'Publisher', 'ISBN10', 'ISBN13', 'ASIN', 'OtherRanks'));
         $links = $this->getAllFirstChildrenLinks($url);
         foreach ($links as $link) {
             //get page 1
-            echo $link.'<br>\n';
+            echo $link . '<br>\n';
             $this->getProducts($link);
             //get page 2,3,4,5
             $linkPagings = $this->getPagingLinks($link);
             foreach ($linkPagings as $linkPaging) {
                 $this->getProducts($linkPaging);
             }
-            $link_category2s= $this->getAllCategory2ChildrenLinks($link);
-            foreach ($link_category2s as $link_category2){
+            $link_category2s = $this->getAllCategory2ChildrenLinks($link);
+            foreach ($link_category2s as $link_category2) {
                 //get page 1
-                echo 'category2:'.$link_category2['link'].'<br>\n';
-                $this->getProducts($link_category2['link'],$link_category2['label']);
+                echo 'category2:' . $link_category2['link'] . '<br>\n';
+                $this->getProducts($link_category2['link'], $link_category2['label']);
                 //get page 2,3,4,5
                 $linkPagings = $this->getPagingLinks($link_category2['link']);
                 foreach ($linkPagings as $linkPaging) {
-                    $this->getProducts($linkPaging,$link_category2['label']);
+                    $this->getProducts($linkPaging, $link_category2['label']);
                 }
             }
         }
 
         // create csv
-        
 //        foreach ($this->allData as $k => $row) {
 //            $row = array_map("utf8_decode", $row);
 //            fputcsv($file, $row);
 //        }
         fclose($this->file);
     }
-    
 
-    private function getProducts($url,$category2='') {
+    private function getProducts($url, $category2 = '') {
         $html = $this->curl_getContent($url);
 
         $html_base = new simple_html_dom();
         $html_base->load($html);
 
         $tmp = $html_base->find("div.zg_itemImmersion");
-        if($category2==''){
+        if ($category2 == '') {
             if ($html_base->find("#zg_browseRoot .zg_selected", 0) != NULL) {
                 $this->category1 = $html_base->find("#zg_browseRoot .zg_selected", 0)->plaintext;
-            } 
+            }
         }
-        
+
 
         foreach ($tmp as $div) {
 
-            $rank= rtrim(trim($div->find("span[class='zg_rankNumber']",0)->plaintext),'.');
+            $rank = rtrim(trim($div->find("span[class='zg_rankNumber']", 0)->plaintext), '.');
             $url = 'https://www.amazon.com' . trim($div->find('a.a-link-normal')[0]->href);
-            
+
             if ($div->find('.p13n-sc-price', 0) != null) {
-                $price=$div->find('.p13n-sc-price', 0)->plaintext;
+                $price = $div->find('.p13n-sc-price', 0)->plaintext;
             } else {
-                $price=$div->find('span[class="a-size-base a-color-price"]', 0)->plaintext;
+                $price = $div->find('span[class="a-size-base a-color-price"]', 0)->plaintext;
             }
             $data['category1'] = $this->category1;
             $data['category2'] = $category2;
-            $data['rank'] =$rank;
+            $data['rank'] = $rank;
             $data['price'] = $price;
             $this->getProduct($url, $data);
-
         }
         // clear html_base
         $html_base->clear();
         unset($html_base);
     }
 
-    private function analizeDetail($productDetailsTable,&$data) {
+    private function analizeDetail($productDetailsTable, &$data) {
         $data['Publisher'] = '';
         $data['ISBN10'] = '';
         $data['ISBN13'] = '';
         $data['ASIN'] = '';
         $data['OtherRanks'] = '';
-        if($productDetailsTable==NULL){
+        if ($productDetailsTable == NULL) {
             return;
         }
-        $content=$productDetailsTable->find('.content',0);
-        if($content==NULL){
+        $content = $productDetailsTable->find('.content', 0);
+        if ($content == NULL) {
             return;
         }
-        $bNodes=$content->find('b');
+        $bNodes = $content->find('b');
         foreach ($bNodes as $bNode) {
-            if($bNode->plaintext=='Publisher:'){
-                $data['Publisher'] =trim(str_replace('Publisher:', '', $bNode->parent()->plaintext));
-            }
-            else if($bNode->plaintext=='ISBN-10:'){
+            if ($bNode->plaintext == 'Publisher:') {
+                $data['Publisher'] = trim(str_replace('Publisher:', '', $bNode->parent()->plaintext));
+            } else if ($bNode->plaintext == 'ISBN-10:') {
                 $data['ISBN10'] = str_replace('ISBN-10:', '', $bNode->parent()->plaintext);
-                if(strlen($data['ISBN10'])==9){
-                    $data['ISBN10']='0'.$data['ISBN10'];
+                if (strlen($data['ISBN10']) == 9) {
+                    $data['ISBN10'] = '0' . $data['ISBN10'];
                 }
-            }
-            else if($bNode->plaintext=='ISBN-13:'){
+            } else if ($bNode->plaintext == 'ISBN-13:') {
                 $data['ISBN13'] = str_replace('ISBN-13:', '', $bNode->parent()->plaintext);
-            }
-            else if($bNode->plaintext=='Amazon Best Sellers Rank:'){
-                $OtherRanks=str_replace('Amazon Best Sellers Rank:', '', $bNode->parent()->plaintext);
-                foreach($bNode->parent()->find('span') as $span){
-                    $OtherRanks=str_replace($span->plaintext, '', $OtherRanks);
+            } else if ($bNode->plaintext == 'Amazon Best Sellers Rank:') {
+                $OtherRanks = str_replace('Amazon Best Sellers Rank:', '', $bNode->parent()->plaintext);
+                foreach ($bNode->parent()->find('span') as $span) {
+                    $OtherRanks = str_replace($span->plaintext, '', $OtherRanks);
                 }
-                $data['OtherRanks'] =trim($OtherRanks);
-            }
-            else if($bNode->plaintext=='ASIN:'){
+                $data['OtherRanks'] = trim($OtherRanks);
+            } else if ($bNode->plaintext == 'ASIN:') {
                 $data['ASIN'] = str_replace('ASIN:', '', $bNode->parent()->plaintext);
             }
         }
-        
     }
 
     private function getProduct($url, $data) {
@@ -138,16 +126,16 @@ class Products {
         $html_base = new simple_html_dom();
         $html_base->load($html);
 
-        $this->analizeDetail($html_base->find("#productDetailsTable", 0),$data);
+        $this->analizeDetail($html_base->find("#productDetailsTable", 0), $data);
 
         $data = array_map("utf8_decode", $data);
         fputcsv($this->file, $data);
         $this->allData[] = $data;
-        
+
         $html_base->clear();
         unset($html_base);
     }
-    
+
     private function getPagingLinks($url) {
         $links = array();
 
@@ -181,7 +169,7 @@ class Products {
 
         return $links;
     }
-    
+
     private function getAllCategory2ChildrenLinks($url) {
         $links = array();
 
@@ -194,7 +182,7 @@ class Products {
 
         $tmp = $tmp[0]->parent()->next_sibling()->find("a");
         for ($i = 0; $i < count($tmp); $i++) {
-            $links[] =array('link'=> $tmp[$i]->href,'label'=>$tmp[$i]->plaintext);
+            $links[] = array('link' => $tmp[$i]->href, 'label' => $tmp[$i]->plaintext);
         }
 
         return $links;
@@ -215,39 +203,12 @@ class Products {
         curl_setopt($ch, CURLOPT_TIMEOUT, 180);
         curl_setopt($ch, CURLOPT_CAINFO, 'crawlera-ca.crt'); //required for HTTPS
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, TRUE); //required for HTTPS
-        
+
         $scraped_page = curl_exec($ch);
         curl_close($ch);
+        
         return $scraped_page;
 
-//        $headers = array();
-//        $headers[] = 'Host: www.amazon.com';
-//        $headers[] = 'User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:55.0) Gecko/20100101 Firefox/55.0';
-//        $headers[] = 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8';
-//        $headers[] = 'Accept-Language: vi-VN,vi;q=0.8,en-US;q=0.5,en;q=0.3';
-//        $headers[] = 'Accept-Encoding: gzip, deflate, br';
-//        $headers[] = 'Connection: keep-alive';
-//        $headers[] = 'Upgrade-Insecure-Requests: 1';
-//        
-//        
-//
-//        $ch = curl_init($url);
-//        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-//
-//        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
-//        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-//        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 1);
-//        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-//        curl_setopt($ch, CURLOPT_ENCODING, "gzip");
-//        $content = curl_exec($ch);
-//        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-//        curl_close($ch);
-//
-//        if ($status == 0) {
-//            return $this->curl_getContent($url);
-//        }
-//
-//        return $content;
     }
 
 }
