@@ -9,19 +9,23 @@ $amu->getAllData();
 
 class Products {
 
-    public $allData = array();
     public $file;
     public $category1;
+    
+    public function __construct() {
+        $this->file = fopen("products.csv", "w");
+        fputcsv($this->file, array('category1', 'category2', 'rank', 'price', 'Publisher', 'ISBN10', 'ISBN13', 'ASIN', 'OtherRanks'));
+    }
 
     public function getAllData() {
 
         $url = 'https://www.amazon.com/Best-Sellers-Books-Medical/zgbs/books/173514/ref=zg_bs_unv_b_2_227567_2';
-        $this->file = fopen("products.csv", "w");
-        fputcsv($this->file, array('category1', 'category2', 'rank', 'price', 'Publisher', 'ISBN10', 'ISBN13', 'ASIN', 'OtherRanks'));
+        
+        
         $links = $this->getAllFirstChildrenLinks($url);
         foreach ($links as $link) {
             //get page 1
-            echo $link . '<br>\n';
+            echo $link . '   ';
             $this->getProducts($link);
             //get page 2,3,4,5
             $linkPagings = $this->getPagingLinks($link);
@@ -31,7 +35,7 @@ class Products {
             $link_category2s = $this->getAllCategory2ChildrenLinks($link);
             foreach ($link_category2s as $link_category2) {
                 //get page 1
-                echo 'category2:' . $link_category2['link'] . '<br>\n';
+                echo 'category2:' . $link_category2['link'] . '   ';
                 $this->getProducts($link_category2['link'], $link_category2['label']);
                 //get page 2,3,4,5
                 $linkPagings = $this->getPagingLinks($link_category2['link']);
@@ -41,11 +45,6 @@ class Products {
             }
         }
 
-        // create csv
-//        foreach ($this->allData as $k => $row) {
-//            $row = array_map("utf8_decode", $row);
-//            fputcsv($file, $row);
-//        }
         fclose($this->file);
     }
 
@@ -57,9 +56,7 @@ class Products {
 
         $tmp = $html_base->find("div.zg_itemImmersion");
         if ($category2 == '') {
-            if ($html_base->find("#zg_browseRoot .zg_selected", 0) != NULL) {
-                $this->category1 = $html_base->find("#zg_browseRoot .zg_selected", 0)->plaintext;
-            }
+            $this->category1 = $html_base->find("#zg_browseRoot .zg_selected", 0)->plaintext;
         }
 
 
@@ -103,9 +100,6 @@ class Products {
                 $data['Publisher'] = trim(str_replace('Publisher:', '', $bNode->parent()->plaintext));
             } else if ($bNode->plaintext == 'ISBN-10:') {
                 $data['ISBN10'] = str_replace('ISBN-10:', '', $bNode->parent()->plaintext);
-                if (strlen($data['ISBN10']) == 9) {
-                    $data['ISBN10'] = '0' . $data['ISBN10'];
-                }
             } else if ($bNode->plaintext == 'ISBN-13:') {
                 $data['ISBN13'] = str_replace('ISBN-13:', '', $bNode->parent()->plaintext);
             } else if ($bNode->plaintext == 'Amazon Best Sellers Rank:') {
@@ -130,7 +124,6 @@ class Products {
 
         $data = array_map("utf8_decode", $data);
         fputcsv($this->file, $data);
-        $this->allData[] = $data;
 
         $html_base->clear();
         unset($html_base);
@@ -160,9 +153,9 @@ class Products {
         $html_base = new simple_html_dom();
         $html_base->load($html);
 
-        $tmp = $html_base->find("#zg_browseRoot .zg_selected");
+        $tmp = $html_base->find("#zg_browseRoot .zg_selected",0);
 
-        $tmp = $tmp[0]->parent()->next_sibling()->find("a");
+        $tmp = $tmp->parent()->next_sibling()->find("a");
         for ($i = 0; $i < count($tmp); $i++) {
             $links[] = $tmp[$i]->href;
         }
@@ -178,9 +171,9 @@ class Products {
         $html_base = new simple_html_dom();
         $html_base->load($html);
 
-        $tmp = $html_base->find("#zg_browseRoot .zg_selected");
+        $tmp = $html_base->find("#zg_browseRoot .zg_selected",0);
 
-        $tmp = $tmp[0]->parent()->next_sibling()->find("a");
+        $tmp = $tmp->parent()->next_sibling()->find("a");
         for ($i = 0; $i < count($tmp); $i++) {
             $links[] = array('link' => $tmp[$i]->href, 'label' => $tmp[$i]->plaintext);
         }
