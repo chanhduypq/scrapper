@@ -10,8 +10,8 @@ $amu->getAllData();
 class Products {
 
     public $file;
-    public $category1;
-    
+    public $category1 = '';
+
     public function __construct() {
         $this->file = fopen("products.csv", "w");
         fputcsv($this->file, array('category1', 'category2', 'rank', 'price', 'Publisher', 'ISBN10', 'ISBN13', 'ASIN', 'OtherRanks'));
@@ -56,7 +56,9 @@ class Products {
 
         $tmp = $html_base->find("div.zg_itemImmersion");
         if ($category2 == '') {
-            $this->category1 = $html_base->find("#zg_browseRoot .zg_selected", 0)->plaintext;
+            if ($html_base->find("#zg_browseRoot .zg_selected", 0) != NULL) {
+                $this->category1 = $html_base->find("#zg_browseRoot .zg_selected", 0)->plaintext;
+            }
         }
 
 
@@ -67,8 +69,10 @@ class Products {
 
             if ($div->find('.p13n-sc-price', 0) != null) {
                 $price = $div->find('.p13n-sc-price', 0)->plaintext;
-            } else {
+            } else if ($div->find('span[class="a-size-base a-color-price"]', 0) != null) {
                 $price = $div->find('span[class="a-size-base a-color-price"]', 0)->plaintext;
+            } else {
+                $price = '';
             }
             $data['category1'] = $this->category1;
             $data['category2'] = $category2;
