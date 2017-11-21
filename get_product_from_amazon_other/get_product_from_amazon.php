@@ -177,6 +177,9 @@ class Products {
 
         $tmp = $html_base->find("#zg_browseRoot .zg_selected",0);
 
+        if ($tmp == null) {
+            return $this->getAllCategory2ChildrenLinks($url);
+        }
         $tmp = $tmp->parent()->next_sibling()->find("a");
         for ($i = 0; $i < count($tmp); $i++) {
             $links[] = array('link' => $tmp[$i]->href, 'label' => $tmp[$i]->plaintext);
@@ -202,7 +205,13 @@ class Products {
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, TRUE); //required for HTTPS
 
         $scraped_page = curl_exec($ch);
+        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
+        
+        if ($status == 0) {
+            sleep(30);
+            return $this->curl_getContent($url);
+        }
         
         return $scraped_page;
 
