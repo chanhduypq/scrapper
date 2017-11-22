@@ -57,18 +57,26 @@ while ($row = mysqli_fetch_array($result)) {
 
 $countGroupon = $countRetailmenot = $countBoth = 0;
 $created_at_label='';
-$result = mysqli_query($conn, "SELECT count(*) as count,DATE_FORMAT(created_at,'%d %b %Y----%h:%i %p') as created_at_label FROM coupon_both WHERE title_retailmenot is null");
+$result = mysqli_query($conn, "SELECT count(*) as count FROM coupon_both WHERE title_retailmenot is null");
 if ($row = mysqli_fetch_array($result)) {
     $countGroupon = $row['count'];
+}
+$result = mysqli_query($conn, "SELECT DATE_FORMAT(created_at,'%d %b %Y----%h:%i %p') as created_at_label FROM coupon_both WHERE title_retailmenot is null");
+if ($row = mysqli_fetch_array($result)) {
     $created_at_label=$row['created_at_label'];
 }
-$result = mysqli_query($conn, "SELECT count(*) as count,DATE_FORMAT(created_at,'%d %b %Y----%h:%i %p') as created_at_label FROM coupon_both WHERE title_groupon is null");
+
+$result = mysqli_query($conn, "SELECT count(*) as count FROM coupon_both WHERE title_groupon is null");
 if ($row = mysqli_fetch_array($result)) {
     $countRetailmenot = $row['count'];
+}
+$result = mysqli_query($conn, "SELECT DATE_FORMAT(created_at,'%d %b %Y----%h:%i %p') as created_at_label FROM coupon_both WHERE title_groupon is null");
+if ($row = mysqli_fetch_array($result)) {
     if($created_at_label==''){
         $created_at_label=$row['created_at_label'];
     }
 }
+
 $result = mysqli_query($conn, "SELECT count(*) as count FROM coupon_both WHERE title_groupon is not null AND title_retailmenot is not null");
 if ($row = mysqli_fetch_array($result)) {
     $countBoth = $row['count'];
