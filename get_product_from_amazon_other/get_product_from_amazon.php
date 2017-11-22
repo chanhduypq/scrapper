@@ -209,7 +209,7 @@ class Products {
         curl_close($ch);
         
         if ($status == 0) {
-            sleep(30);
+            sleep(3);
             return $this->curl_getContent($url);
         }
         
