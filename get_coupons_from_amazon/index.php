@@ -1,13 +1,19 @@
 <?php 
-$orderBy = 'created_at DESC';
+$orderBy = 'used_today_groupon ASC';
 
-$classForUsedToday = $classForExpiry = '';
+$classForExpiry = '';
+$classForUsedToday = ' headerSortDown';
+$order_key = 'used_today_groupon';
+$order_value = 'asc';
 
-$order_key = $order_value = '';
+$used_today='1';
+
 if (count($_POST) == 0) {
     $where=' WHERE 1=1';
     $type='all';
+    $used_today='1';
 } else {
+    $used_today = $_POST['used_today'];
     if ($_POST['order_key'] != '') {
         $order_key = $_POST['order_key'];
         $order_value = $_POST['order_value'];
@@ -28,19 +34,39 @@ if (count($_POST) == 0) {
         }
     }
     if($_POST['type']=='all'){
-        $where=' WHERE 1=1';
+        if ($used_today == '1') {
+            $where = ' WHERE 1=1 AND (used_today_groupon is not null OR used_today_retailmenot is not null)';
+        } else {
+            $where = ' WHERE 1=1';
+        }
+
         $type='all';
     }
     else if($_POST['type']=='groupon'){
-        $where=' WHERE title_retailmenot is null';
+        if ($used_today == '1') {
+            $where = ' WHERE title_retailmenot is null AND used_today_groupon is not null';
+        } else {
+            $where = ' WHERE title_retailmenot is null';
+        }
+
         $type='groupon';
     }
     else if($_POST['type']=='retailmenot'){
-        $where=' WHERE title_groupon is null';
+        if ($used_today == '1') {
+            $where = ' WHERE title_groupon is null AND used_today_retailmenot is not null';
+        } else {
+            $where = ' WHERE title_groupon is null';
+        }
+
         $type='retailmenot';
     }
     else if($_POST['type']=='both'){
-        $where=' WHERE title_groupon is not null AND title_retailmenot is not null';
+        if ($used_today == '1') {
+            $where = ' WHERE title_groupon is not null AND title_retailmenot is not null AND (used_today_groupon is not null OR used_today_retailmenot is not null)';
+        } else {
+            $where = ' WHERE title_groupon is not null AND title_retailmenot is not null';
+        }
+
         $type='both';
     }
     
@@ -50,14 +76,28 @@ $conn = mysqli_connect('localhost', 'root', '', 'db');
 
 $coupons = array();
 
-$result = mysqli_query($conn, "SELECT used_today_groupon,used_today_retailmenot,code,title_groupon,title_retailmenot,DATE_FORMAT(expire,'%d %m %Y') as expire,created_at,DATE_FORMAT(added_date,'%d %m %Y') as added_date,DATE_FORMAT(created_at,'%d %b %Y----%h:%i %p') as created_at_label FROM coupon_both $where ORDER BY coupon_both.$orderBy");
-while ($row = mysqli_fetch_array($result)) {
-    $coupons[] = $row;
+if ($order_key == 'used_today_groupon') {
+    $result = mysqli_query($conn, "SELECT * FROM coupon_both_view $where ORDER BY used_today $order_value");
+} else {
+    $result = mysqli_query($conn, "SELECT used_today_groupon,used_today_retailmenot,code,title_groupon,title_retailmenot,DATE_FORMAT(expire,'%d %m %Y') as expire,created_at,DATE_FORMAT(added_date,'%d %m %Y') as added_date,DATE_FORMAT(created_at,'%d %b %Y----%h:%i %p') as created_at_label FROM coupon_both $where ORDER BY coupon_both.$orderBy");
 }
+
+while ($coupon = mysqli_fetch_array($result)) {
+
+    if ($order_key != 'used_today_groupon' || (isset($coupon['used_today']) && $coupon['used_today'] != '') || $used_today == '0') {
+        $coupons[] = $coupon;
+    }
+}
+
 
 $countGroupon = $countRetailmenot = $countBoth = 0;
 $created_at_label='';
-$result = mysqli_query($conn, "SELECT count(*) as count FROM coupon_both WHERE title_retailmenot is null");
+if ($used_today == '1') {
+    $result = mysqli_query($conn, "SELECT count(*) as count FROM coupon_both WHERE title_retailmenot is null AND used_today_groupon is not null");
+} else {
+    $result = mysqli_query($conn, "SELECT count(*) as count FROM coupon_both WHERE title_retailmenot is null");
+}
+
 if ($row = mysqli_fetch_array($result)) {
     $countGroupon = $row['count'];
 }
@@ -66,7 +106,12 @@ if ($row = mysqli_fetch_array($result)) {
     $created_at_label=$row['created_at_label'];
 }
 
-$result = mysqli_query($conn, "SELECT count(*) as count FROM coupon_both WHERE title_groupon is null");
+if ($used_today == '1') {
+    $result = mysqli_query($conn, "SELECT count(*) as count FROM coupon_both WHERE title_groupon is null AND used_today_retailmenot is not null");
+} else {
+    $result = mysqli_query($conn, "SELECT count(*) as count FROM coupon_both WHERE title_groupon is null");
+}
+
 if ($row = mysqli_fetch_array($result)) {
     $countRetailmenot = $row['count'];
 }
@@ -77,7 +122,12 @@ if ($row = mysqli_fetch_array($result)) {
     }
 }
 
-$result = mysqli_query($conn, "SELECT count(*) as count FROM coupon_both WHERE title_groupon is not null AND title_retailmenot is not null");
+if ($used_today == '1') {
+    $result = mysqli_query($conn, "SELECT count(*) as count FROM coupon_both WHERE title_groupon is not null AND title_retailmenot is not null AND (used_today_groupon is not null OR used_today_retailmenot is not null)");
+} else {
+    $result = mysqli_query($conn, "SELECT count(*) as count FROM coupon_both WHERE title_groupon is not null AND title_retailmenot is not null");
+}
+
 if ($row = mysqli_fetch_array($result)) {
     $countBoth = $row['count'];
 }
@@ -105,6 +155,15 @@ and open the template in the editor.
                 input.setAttribute('disabled','disabled');
             }
             jQuery(function ($){
+                $("#checkbox_used_today").change(function (){
+                    if($(this).is(':checked')){
+                        $("#used_today").val('1');
+                    }
+                    else{
+                        $("#used_today").val('0');
+                    }
+                    $("form").submit();
+                });
                 $("th.used_today.header").click(function (){
                     if($(this).hasClass('headerSortDown')){
                         $("#order_key").val('used_today_groupon');
@@ -219,6 +278,7 @@ and open the template in the editor.
                 <input type="hidden" value="<?php echo $order_key;?>" name="order_key" id="order_key"/>
                 <input type="hidden" value="<?php echo $order_value;?>" name="order_value" id="order_value"/>
                 <input type="hidden" name="type" id="type" value="<?php echo $type;?>"/>
+                <input type="hidden" name="used_today" id="used_today" value="<?php echo $used_today;?>"/>
             </form>     
             <ul id="topnav">
                 <li id="all"<?php if($type=='all') echo ' class="active"';?>><a>All (<?php echo $countGroupon+$countRetailmenot+$countBoth;?>)</a></li>
@@ -226,6 +286,10 @@ and open the template in the editor.
                 <li id="retailmenot"<?php if($type=='retailmenot') echo ' class="active"';?>><a>Retailmenot (<?php echo $countRetailmenot;?>)</a></li>
                 <li id="both"<?php if($type=='both') echo ' class="active"';?>><a>Both (<?php echo $countBoth;?>)</a></li>
             </ul>
+            <label style="cursor: pointer;margin-left: 50px;">
+                <input type="checkbox" id="checkbox_used_today"<?php if($used_today=='1'){?> checked="checked"<?php }?>/>
+                used today is not empty
+            </label>            
             <div style="width: 100%;margin: 0 auto;text-align: center;">
                 <table style="width: 100%;">
                     <thead>
@@ -285,7 +349,7 @@ and open the template in the editor.
                                        echo $coupon['used_today_groupon'];
                                    }
                                    else{
-                                       $coupon['used_today_retailmenot'];
+                                       echo $coupon['used_today_retailmenot'];
                                    }
                                }
                                else{
@@ -293,7 +357,7 @@ and open the template in the editor.
                                        echo $coupon['used_today_groupon'];
                                    }
                                    else{
-                                       $coupon['used_today_retailmenot'];
+                                       echo $coupon['used_today_retailmenot'];
                                    }
                                }
                                ?>
