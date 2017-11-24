@@ -1,4 +1,6 @@
-<?php
+<?php 
+include 'config.php';
+
 $orderBy = 'used_today ASC';
 
 $classForExpiry = $classForUsedToday = '';
@@ -69,7 +71,7 @@ if (count($_POST) == 0) {
     }
 }
 
-$conn = mysqli_connect('localhost', 'root', '', 'db');
+$conn = mysqli_connect($config['db_host'], $config['db_user'], $config['db_pass'], $config['db_name']);
 
 $coupons = array();
 

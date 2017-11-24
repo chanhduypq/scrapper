@@ -1,6 +1,6 @@
 <?php
-
-$conn = mysqli_connect('localhost', 'root', '', 'db');
+include 'config.php';
+$conn = mysqli_connect($config['db_host'], $config['db_user'], $config['db_pass'], $config['db_name']);
 $code = str_replace("'", "\'", $_GET['code']);
 $type = $_GET['type'];
 $result = mysqli_query($conn, "SELECT used_groupon,used_retailmenot,DATE_FORMAT(used_date,'%Y, %m, %d') as used_date FROM coupon_detail WHERE coupon_code='$code' ORDER BY coupon_detail.used_date ASC");

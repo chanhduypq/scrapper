@@ -1,4 +1,5 @@
 <?php
+include 'config.php';
 
 require_once('include/simple_html_dom.php');
 set_time_limit(0);
@@ -288,9 +289,9 @@ class Coupon {
 }
 
 function updateCouponBoth() {
-    $conn = mysqli_connect('localhost', 'root', '', 'db');
+    $conn = mysqli_connect($config['db_host'], $config['db_user'], $config['db_pass'], $config['db_name']);
     
-    $coupons = Coupon::getAllCoupons('localhost', 'root', '', 'db');
+    $coupons = Coupon::getAllCoupons($config['db_host'], $config['db_user'], $config['db_pass'], $config['db_name']);
     
     mysqli_query($conn, "DELETE FROM coupon_both");
     
@@ -355,10 +356,10 @@ function updateCouponBoth() {
 
 function updateCoupon() {
     $couponGroupon = new CouponGroupon();
-    $couponGroupon->saveDB('localhost', 'root', '', 'db');
+    $couponGroupon->saveDB($config['db_host'], $config['db_user'], $config['db_pass'], $config['db_name']);
 
     $couponRetailmenot = new CouponRetailmenot();
-    $couponRetailmenot->saveDB('localhost', 'root', '', 'db');
+    $couponRetailmenot->saveDB($config['db_host'], $config['db_user'], $config['db_pass'], $config['db_name']);
 }
 
 ?>
